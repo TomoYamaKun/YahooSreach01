@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/ItemEntity.kt
-//ver 1.02-10
+//ver 1.01-10
 package com.yahoosreach01.papa
 
 import androidx.room.Entity
