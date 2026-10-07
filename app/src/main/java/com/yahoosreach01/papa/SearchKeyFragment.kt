@@ -1,6 +1,6 @@
-//app/src/main/java/com/yahoosreach01/papa/ui/SearchKeyFragment.kt
-//ver 1.01-04
-package com.yahoosreach01.papa.ui
+//app/src/main/java/com/yahoosreach01/papa/SearchKeyFragment.kt
+//ver 1.01-07
+package com.yahoosreach01.papa
 
 import android.os.Bundle
 import android.view.LayoutInflater

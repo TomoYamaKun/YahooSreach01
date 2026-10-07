@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/MainActivity.kt
-//ver 1.01-04
+//ver 1.01-07
 package com.yahoosreach01.papa
 
 import android.os.Bundle
@@ -8,7 +8,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.tabs.TabLayoutMediator
 import com.yahoosreach01.papa.databinding.ActivityMainBinding
-import com.yahoosreach01.papa.ui.ViewPagerAdapter
 import com.yahoosreach01.papa.utils.LogManager
 
 class MainActivity : AppCompatActivity() {
@@ -37,7 +36,6 @@ class MainActivity : AppCompatActivity() {
         val adapter = ViewPagerAdapter(this)
         binding.viewPager.adapter = adapter
         
-        // 要件18: 左右スクロールを極力無効化するため、スワイプでのタブ移動を禁止（タップでのみ遷移）
         binding.viewPager.isUserInputEnabled = false
 
         val tabTitles = listOf("検索結果", "ログ", "検索キー", "除外キー", "除外商品")

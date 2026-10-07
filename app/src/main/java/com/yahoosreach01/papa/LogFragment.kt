@@ -1,6 +1,6 @@
-   //app/src/main/java/com/yahoosreach01/papa/ui/LogFragment.kt
-//ver 1.01-04
-package com.yahoosreach01.papa.ui
+//app/src/main/java/com/yahoosreach01/papa/LogFragment.kt
+//ver 1.01-07
+package com.yahoosreach01.papa
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -27,7 +27,6 @@ class LogFragment : Fragment() {
         
         binding.tvLogContent.text = LogManager.getLogs()
 
-        // 画面全体タップでクリップボードへコピー（要件17）
         binding.root.setOnClickListener {
             LogManager.copyToClipboard(requireContext())
         }
@@ -35,7 +34,6 @@ class LogFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // タブ切り替え時に最新ログを反映
         binding.tvLogContent.text = LogManager.getLogs()
     }
 

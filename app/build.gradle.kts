@@ -1,8 +1,9 @@
 //app/build.gradle.kts
-//ver 1.00-02
+//ver 1.02-09
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("kotlin-kapt") // Roomアノテーション処理用に新規追加
 }
 
 android {
@@ -44,6 +45,7 @@ dependencies {
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion") // DB自動生成用コンパイラ追加
     
     // Glide (画像キャッシュ表示用)
     implementation("com.github.bumptech.glide:glide:4.16.0")

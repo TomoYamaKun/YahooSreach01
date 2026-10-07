@@ -1,6 +1,6 @@
-(//app/src/main/java/com/yahoosreach01/papa/ui/ViewPagerAdapter.kt
-//ver 1.01-04
-package com.yahoosreach01.papa.ui
+//app/src/main/java/com/yahoosreach01/papa/ViewPagerAdapter.kt
+//ver 1.01-07
+package com.yahoosreach01.papa
 
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
