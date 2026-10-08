@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchWorker.kt
-//ver 1.01-31
+//ver 1.01-34
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -58,13 +58,18 @@ object SearchWorker {
 
                     for (element in items) {
                         try {
-                            val titleEl = element.select(".Product__titleLink, a.thm, a[href*='/auction/']")
+                            val titleEl = element.select(".Product__titleLink, a.thm, a[href*='auction']")
                             val title = titleEl.text() ?: continue
+                            if (title.isBlank()) continue
+                            
                             val itemUrl = titleEl.attr("href")
                             if (itemUrl.isBlank()) continue
 
-                            // 安全な演算子（?.）を使用してヌル安全に処理
-                            val itemId = itemUrl.substringAfter("/auction/", "").substringBefore("?", "")
+                            val itemId = when {
+                                itemUrl.contains("/auction/") -> itemUrl.substringAfter("/auction/").substringBefore("?")
+                                itemUrl.contains("auction/") -> itemUrl.substringAfter("auction/").substringBefore("?")
+                                else -> itemUrl.hashCode().toString()
+                            }
                             if (itemId.isBlank()) continue
 
                             val imgEl = element.select("img")
@@ -87,7 +92,7 @@ object SearchWorker {
                             if (currentPrice == 0 && promptPrice == 0) {
                                 val priceText = element.select(".Product__priceValue, .prc").text()
                                 val rawMatch = Regex("([0-9,]+)").find(priceText)
-                                currentPrice = rawMatch?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull() ?: 0
+                                currentPrice = rawMatch?.groupValues?.get(1)?.replace(",", "").toIntOrNull() ?: 0
                             }
 
                             var bidCount = 0
@@ -111,8 +116,8 @@ object SearchWorker {
                                 itemId = itemId,
                                 conditionId = conditionId,
                                 title = title,
-                                url = itemUrl,
-                                imageUrl = imageUrl,
+                                url = if (itemUrl.startsWith("http")) itemUrl else "https://auctions.yahoo.co.jp$itemUrl",
+                                imageUrl = if (imageUrl.startsWith("http")) imageUrl else "https:$imageUrl",
                                 localImagePath = null,
                                 currentPrice = currentPrice,
                                 promptDecisionPrice = promptPrice,
@@ -154,8 +159,8 @@ object SearchWorker {
                             val title = element.select("div, span").text()
                             if (title.isBlank() || title.length < 3) continue
 
-                            // 安全な演算子（?.）を使用してヌル安全に処理
-                            val itemId = itemUrl.substringAfter("/item/", "").substringBefore("?", "")
+                            // ヌル安全な呼び出しに修正
+                            val itemId = itemUrl.substringAfter("/item/", "").let { it.substringBefore("?", it) }
                             if (itemId.isBlank()) continue
 
                             val imgEl = element.select("img")
@@ -174,7 +179,7 @@ object SearchWorker {
                                 conditionId = conditionId,
                                 title = title.take(80),
                                 url = if (itemUrl.startsWith("http")) itemUrl else "https://paypayfleamarket.yahoo.co.jp$itemUrl",
-                                imageUrl = imageUrl,
+                                imageUrl = if (imageUrl.startsWith("http")) imageUrl else "https:$imageUrl",
                                 localImagePath = null,
                                 currentPrice = 0,
                                 promptDecisionPrice = price,
