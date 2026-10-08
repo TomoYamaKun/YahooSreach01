@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultFragment.kt
-//ver 1.01-20
+//ver 1.01-35
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -19,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.yahoosreach01.papa.databinding.FragmentSearchResultBinding
+import com.yahoosreach01.papa.utils.LogManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -44,12 +45,15 @@ class SearchResultFragment : Fragment() {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
 
+        // データベースの有効な全アイテムをリアルタイムで確実に取得してリストにセットする (要件7)
         viewLifecycleOwner.lifecycleScope.launch {
             db.itemDao().getAllActiveItems().collectLatest { items ->
+                LogManager.d("SearchResultFragment", "UI側で検知したアクティブアイテム数: ${items.size}")
                 adapter.submitList(items)
             }
         }
 
+        // 検索ボタン押下時の処理
         binding.fabSearch.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 val conditions = db.searchConditionDao().getAllConditions().first()
@@ -92,9 +96,17 @@ class SearchResultFragment : Fragment() {
         Glide.with(this).load(item.imageUrl).into(imageView)
         layout.addView(imageView)
 
+        val priceText = if (item.source == "fleamarket") {
+            "価格: ${item.promptDecisionPrice}円 / 送料: ${item.shippingInfo}"
+        } else {
+            val bidStr = if (item.bidCount > 0) " (入札:${item.bidCount}件)" else ""
+            val promptStr = if (item.promptDecisionPrice > 0) " / 即決: ${item.promptDecisionPrice}円" else ""
+            "現在: ${item.currentPrice}円$bidStr$promptStr / 送料: ${item.shippingInfo}"
+        }
+
         val priceView = TextView(requireContext()).apply {
-            text = "現在: ${item.currentPrice}円" + if (item.promptDecisionPrice > 0) " / 即決: ${item.promptDecisionPrice}円" else ""
-            textSize = 16f
+            text = priceText
+            textSize = 15f
             setTextColor(android.graphics.Color.parseColor("#D32F2F"))
             setPadding(0, 24, 0, 12)
         }
@@ -112,7 +124,7 @@ class SearchResultFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle(item.title)
             .setView(scrollView)
-            .setPositiveButton("ブラウザで開く(最終手段)") { _, _ ->
+            .setPositiveButton("ブラウザで開く") { _, _ ->
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.url))
                 startActivity(intent)
             }
