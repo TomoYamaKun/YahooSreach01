@@ -1,7 +1,7 @@
 //app/src/main/java/com/yahoosreach01/papa/Constants.kt
-//ver 1.01-51
+//ver 1.01-57
 package com.yahoosreach01.papa
 
 object Constants {
-    const val APP_VERSION = "1.01-51"
+    const val APP_VERSION = "1.01-57"
 }
