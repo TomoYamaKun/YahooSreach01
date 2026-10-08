@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultAdapter.kt
-//ver 1.01-19
+//ver 1.01-25
 package com.yahoosreach01.papa
 
 import android.view.LayoutInflater
@@ -32,22 +32,26 @@ class SearchResultAdapter(
         
         holder.binding.tvBadgeNew.visibility = if (item.isNew) View.VISIBLE else View.GONE
 
-        if (item.source == "auction") {
-            holder.binding.tvSource.text = "オークション"
-            holder.binding.tvSource.setBackgroundColor(android.graphics.Color.parseColor("#FF5722"))
-        } else {
+        // フリマとオークションの正確な区分け表示
+        if (item.source == "fleamarket") {
             holder.binding.tvSource.text = "フリマ"
             holder.binding.tvSource.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50"))
-        }
 
-        // 価格がくっつかないように明確にスペースとラベルを分離 (要件13)
-        holder.binding.tvCurrentPrice.text = "現在: ${item.currentPrice}円"
-        if (item.promptDecisionPrice > 0) {
-            holder.binding.tvPromptPrice.text = "即決: ${item.promptDecisionPrice}円"
+            val priceStr = if (item.promptDecisionPrice > 0) "${item.promptDecisionPrice}円" else "${item.currentPrice}円"
+            holder.binding.tvCurrentPrice.text = "価格: $priceStr"
+            holder.binding.tvPromptPrice.text = "送料: ${item.shippingInfo}"
             holder.binding.tvPromptPrice.visibility = View.VISIBLE
         } else {
-            holder.binding.tvPromptPrice.text = ""
-            holder.binding.tvPromptPrice.visibility = View.GONE
+            holder.binding.tvSource.text = "オークション"
+            holder.binding.tvSource.setBackgroundColor(android.graphics.Color.parseColor("#FF5722"))
+
+            // オークション：現在値 ＋ 入札数 ＋ 即決値(あれば) ＋ 送料
+            val bidStr = if (item.bidCount > 0) " (入札:${item.bidCount}件)" else " (入札:0件)"
+            holder.binding.tvCurrentPrice.text = "現在: ${item.currentPrice}円$bidStr"
+
+            val promptPart = if (item.promptDecisionPrice > 0) "即決: ${item.promptDecisionPrice}円 / " else ""
+            holder.binding.tvPromptPrice.text = "${promptPart}送料: ${item.shippingInfo}"
+            holder.binding.tvPromptPrice.visibility = View.VISIBLE
         }
 
         Glide.with(holder.itemView.context)
