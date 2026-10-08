@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchKeyFragment.kt
-//ver 1.01-30
+//ver 1.01-39
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -52,7 +52,6 @@ class SearchKeyFragment : Fragment() {
     private fun showDialog(db: AppDatabase, existingCondition: SearchConditionEntity?) {
         val dialogBinding = DialogAddConditionBinding.inflate(layoutInflater)
         
-        // ソート順の選択肢セット (表示名とURLパラメータのマッピング)
         val sortLabels = arrayOf("新着順 / おすすめ", "価格が安い順", "入札件数が多い順", "残り時間が短い順")
         val sortValues = arrayOf("a", "s", "b", "e")
         val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, sortLabels)
@@ -64,6 +63,8 @@ class SearchKeyFragment : Fragment() {
             dialogBinding.etExcludeKeys.setText(it.excludeKeys)
             dialogBinding.etMinPrice.setText(if (it.minPrice > 0) it.minPrice.toString() else "")
             dialogBinding.etMaxPrice.setText(if (it.maxPrice > 0) it.maxPrice.toString() else "")
+            dialogBinding.etCategories.setText(it.categories)
+            dialogBinding.etExcludeCategories.setText(it.excludeCategories)
             dialogBinding.cbYahoo.isChecked = (it.targetService == "both" || it.targetService == "auction")
             
             val sortIndex = sortValues.indexOf(it.sortOrder)
@@ -86,6 +87,8 @@ class SearchKeyFragment : Fragment() {
                 val excludeKeys = dialogBinding.etExcludeKeys.text.toString()
                 val minPrice = dialogBinding.etMinPrice.text.toString().toIntOrNull() ?: 0
                 val maxPrice = dialogBinding.etMaxPrice.text.toString().toIntOrNull() ?: 0
+                val categories = dialogBinding.etCategories.text.toString()
+                val excludeCategories = dialogBinding.etExcludeCategories.text.toString()
                 val target = if (dialogBinding.cbYahoo.isChecked) "both" else "fleamarket"
                 val selectedSort = sortValues[dialogBinding.spinnerSort.selectedItemPosition]
                 
@@ -96,7 +99,8 @@ class SearchKeyFragment : Fragment() {
                     excludeKeys = excludeKeys,
                     minPrice = minPrice,
                     maxPrice = maxPrice,
-                    categories = "",
+                    categories = categories,
+                    excludeCategories = excludeCategories,
                     targetService = target,
                     sortOrder = selectedSort
                 )

@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchConditionEntity.kt
-//ver 1.01-30
+//ver 1.01-39
 package com.yahoosreach01.papa
 
 import androidx.room.Entity
@@ -13,7 +13,8 @@ data class SearchConditionEntity(
     val excludeKeys: String,
     val minPrice: Int,
     val maxPrice: Int,
-    val categories: String,
-    val targetService: String,
-    val sortOrder: String = "a" // "a"=おすすめ/新着, "s"=価格安い順, "b"=入札件数順, "e"=残り時間
+    val categories: String,        // 対象カテゴリID（カンマ区切りなどで複数指定可能）
+    val excludeCategories: String, // 除外カテゴリID
+    val targetService: String,     // "both", "auction", "fleamarket"
+    val sortOrder: String          // "a", "s", "b", "e"
 )

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--//app/src/main/res/layout/dialog_add_condition.xml-->
-<!--ver 1.01-30-->
+<!--ver 1.01-39-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -15,14 +15,14 @@
             android:id="@+id/et_pattern_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="パターン名 (例: PC周辺機器)"
+            android:hint="パターン名 (例: メモリ)"
             android:inputType="text" />
 
         <EditText
             android:id="@+id/et_search_keys"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="検索キー (例: (A B))"
+            android:hint="検索キー (例: DDR4 32GB)"
             android:layout_marginTop="8dp"
             android:inputType="text" />
 
@@ -62,6 +62,23 @@
                 android:hint="最高価格"
                 android:inputType="number" />
         </LinearLayout>
+
+        <!-- カテゴリ指定フィールド -->
+        <EditText
+            android:id="@+id/et_categories"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="対象カテゴリID (複数可: カンマ区切り)"
+            android:layout_marginTop="8dp"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/et_exclude_categories"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="除外カテゴリID (複数可: カンマ区切り)"
+            android:layout_marginTop="8dp"
+            android:inputType="text" />
 
         <TextView
             android:layout_width="wrap_content"

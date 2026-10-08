@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchWorker.kt
-//ver 1.01-38
+//ver 1.01-51
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -44,8 +44,9 @@ object SearchWorker {
                     }
                     val priceMinParam = if (condition.minPrice > 0) "&aucminprice=${condition.minPrice}" else ""
                     val priceMaxParam = if (condition.maxPrice > 0) "&aucmaxprice=${condition.maxPrice}" else ""
+                    val categoryParam = if (condition.categories.isNotBlank()) "&category=${condition.categories.trim()}" else ""
 
-                    val yahooUrl = "https://auctions.yahoo.co.jp/search/search?p=$encodedQuery$sortParam$priceMinParam$priceMaxParam&exflg=1&b=1&n=30"
+                    val yahooUrl = "https://auctions.yahoo.co.jp/search/search?p=$encodedQuery$sortParam$priceMinParam$priceMaxParam$categoryParam&exflg=1&b=1&n=50"
                     LogManager.d("SearchWorker", "ヤフオク検索URL: $yahooUrl")
 
                     val doc = Jsoup.connect(yahooUrl)
@@ -59,28 +60,26 @@ object SearchWorker {
                     for (element in items) {
                         try {
                             val titleEl = element.select(".Product__titleLink, a.thm, a[href*='auction']")
-                            val title = titleEl.text() ?: continue
+                            val title: String = titleEl.text() ?: continue
                             if (title.isBlank()) continue
                             
-                            val itemUrl = titleEl.attr("href") ?: continue
+                            val rawHref = titleEl.attr("href")
+                            val itemUrl: String = (rawHref ?: "").toString()
                             if (itemUrl.isBlank()) continue
 
-                            // Javaの indexOf / substring を使用してヌル安全性エラーを完全に回避
-                            val aucIdx = itemUrl.indexOf("/auction/")
-                            val altAucIdx = if (aucIdx == -1) itemUrl.indexOf("auction/") else aucIdx
-                            val rawIdPart = if (altAucIdx != -1) {
-                                val start = if (itemUrl.startsWith("https://auctions.yahoo.co.jp/jp/auction/")) altAucIdx + 8 else altAucIdx + 8
-                                itemUrl.substring(start)
+                            // メソッドチェーンを完全に分離し、一時変数で型を保証
+                            val urlWithoutQuery: String = itemUrl.substringBefore("?", itemUrl)
+                            val itemId: String = if (urlWithoutQuery.contains("auction/")) {
+                                urlWithoutQuery.substringAfterLast("auction/")
                             } else {
-                                ""
+                                urlWithoutQuery.hashCode().toString()
                             }
-                            val qIdx = rawIdPart.indexOf("?")
-                            val itemId = if (qIdx != -1) rawIdPart.substring(0, qIdx) else rawIdPart
                             val finalItemId = if (itemId.isBlank()) itemUrl.hashCode().toString() else itemId
 
                             val imgEl = element.select("img")
-                            val imageUrl = imgEl.attr("data-src")?.takeIf { it.isNotEmpty() } ?: (imgEl.attr("src") ?: "")
-                            val cardText = element.text() ?: ""
+                            val rawImg = imgEl.attr("data-src").takeIf { !it.isNullOrEmpty() } ?: imgEl.attr("src")
+                            val imageUrl: String = (rawImg ?: "").toString()
+                            val cardText: String = (element.text() ?: "").toString()
 
                             var currentPrice = 0
                             var promptPrice = 0
@@ -96,13 +95,13 @@ object SearchWorker {
                             }
 
                             if (currentPrice == 0 && promptPrice == 0) {
-                                val priceText = element.select(".Product__priceValue, .prc").text()
+                                val priceText: String = (element.select(".Product__priceValue, .prc").text() ?: "").toString()
                                 val rawMatch = Regex("([0-9,]+)").find(priceText)
-                                currentPrice = rawMatch?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull() ?: 0
+                                currentPrice = rawMatch?.groupValues?.get(1)?.replace(",", "").toIntOrNull() ?: 0
                             }
 
                             var bidCount = 0
-                            val bidMatch = Regex("([0-9]+)件").find(cardText)
+                            val bidMatch = Regex("(?:入札[:\\s]*)?([0-9]+)件").find(cardText)
                             if (bidMatch != null) {
                                 bidCount = bidMatch.groupValues[1].toIntOrNull() ?: 0
                             }
@@ -118,12 +117,15 @@ object SearchWorker {
 
                             if (element.select(".Product__status--ended, .end").isNotEmpty()) continue
 
+                            val finalUrl = if (itemUrl.startsWith("http")) itemUrl else "https://auctions.yahoo.co.jp$itemUrl"
+                            val finalImgUrl = if (imageUrl.startsWith("http")) imageUrl else "https:$imageUrl"
+
                             val item = ItemEntity(
                                 itemId = finalItemId,
                                 conditionId = conditionId,
                                 title = title,
-                                url = if (itemUrl.startsWith("http")) itemUrl else "https://auctions.yahoo.co.jp$itemUrl",
-                                imageUrl = if (imageUrl.startsWith("http")) imageUrl else "https:$imageUrl",
+                                url = finalUrl,
+                                imageUrl = finalImgUrl,
                                 localImagePath = null,
                                 currentPrice = currentPrice,
                                 promptDecisionPrice = promptPrice,
@@ -159,35 +161,43 @@ object SearchWorker {
                     val fleaItems = doc.select("a[href*='/item/'], div[data-reactid], li")
                     for (element in fleaItems) {
                         try {
-                            val itemUrl = if (element.tagName() == "a") element.attr("href") else element.select("a").attr("href")
+                            val aEl = if (element.tagName() == "a") element else element.select("a").first()
+                            val itemUrl: String = (aEl?.attr("href") ?: "").toString()
                             if (itemUrl.isBlank() || !itemUrl.contains("/item/")) continue
 
-                            val title = element.select("div, span").text() ?: continue
+                            val title: String = (element.select("div, span").text() ?: "").toString()
                             if (title.isBlank() || title.length < 3) continue
 
-                            val itemIdx = itemUrl.indexOf("/item/")
-                            val rawFleaId = if (itemIdx != -1) itemUrl.substring(itemIdx + 6) else ""
-                            val qIdx = rawFleaId.indexOf("?")
-                            val fleaId = if (qIdx != -1) rawFleaId.substring(0, qIdx) else rawFleaId
+                            // メソッドチェーンを完全に分離し、一時変数で型を保証
+                            val fleaUrlWithoutQuery: String = itemUrl.substringBefore("?", itemUrl)
+                            val fleaId: String = if (fleaUrlWithoutQuery.contains("item/")) {
+                                fleaUrlWithoutQuery.substringAfterLast("item/")
+                            } else {
+                                ""
+                            }
                             if (fleaId.isBlank()) continue
 
                             val imgEl = element.select("img")
-                            val imageUrl = imgEl.attr("data-src")?.takeIf { it.isNotEmpty() } ?: (imgEl.attr("src") ?: "")
+                            val rawImg = imgEl.attr("data-src").takeIf { !it.isNullOrEmpty() } ?: imgEl.attr("src")
+                            val imageUrl: String = (rawImg ?: "").toString()
                             if (imageUrl.isBlank()) continue
 
-                            val cardText = element.text() ?: ""
+                            val cardText: String = (element.text() ?: "").toString()
                             val priceMatch = Regex("([0-9,]+)円").find(cardText)
-                            val price = priceMatch?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull() ?: 0
+                            val price = priceMatch?.groupValues?.get(1)?.replace(",", "").toIntOrNull() ?: 0
                             if (price == 0) continue
 
                             val shippingInfo = if (cardText.contains("送料無料") || cardText.contains("送料込み")) "送料無料" else "送料確認"
+
+                            val finalUrl = if (itemUrl.startsWith("http")) itemUrl else "https://paypayfleamarket.yahoo.co.jp$itemUrl"
+                            val finalImgUrl = if (imageUrl.startsWith("http")) imageUrl else "https:$imageUrl"
 
                             val item = ItemEntity(
                                 itemId = "flea_$fleaId",
                                 conditionId = conditionId,
                                 title = title.take(80),
-                                url = if (itemUrl.startsWith("http")) itemUrl else "https://paypayfleamarket.yahoo.co.jp$itemUrl",
-                                imageUrl = if (imageUrl.startsWith("http")) imageUrl else "https:$imageUrl",
+                                url = finalUrl,
+                                imageUrl = finalImgUrl,
                                 localImagePath = null,
                                 currentPrice = 0,
                                 promptDecisionPrice = price,

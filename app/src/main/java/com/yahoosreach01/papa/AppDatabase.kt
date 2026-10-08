@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDatabase.kt
-//ver 1.01-32
+//ver 1.01-39
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -9,7 +9,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [ItemEntity::class, SearchConditionEntity::class],
-    version = 5, // バージョンを5に上げてスキーマ変更を完全に反映
+    version = 6, // バージョンを6に上げてカテゴリ追加を反映
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,7 +27,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ysearch_database"
                 )
-                .fallbackToDestructiveMigration() // スキーマ変更時に安全に再作成
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
