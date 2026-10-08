@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchWorker.kt
-//ver 1.01-58
+//ver 1.01-65
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -45,41 +45,13 @@ object SearchWorker {
             val currentTime =
                 System.currentTimeMillis()
 
-            // 🟨🟨🟨🟨🟨🟨🟨🟨🟨
-            // ヤフオク検索
-
+            // 1. ヤフオク検索
             if (condition.targetService != "fleamarket") {
 
                 try {
 
-                    val sortParam =
-                        when (condition.sortOrder) {
-                            "s" -> "&s1=cbcl&o=a"
-                            "b" -> "&s1=bid&o=d"
-                            "e" -> "&s1=end&o=a"
-                            else -> "&s1=new&o=d"
-                        }
-
-                    val priceMinParam =
-                        if (condition.minPrice > 0)
-                            "&aucminprice=${condition.minPrice}"
-                        else
-                            ""
-
-                    val priceMaxParam =
-                        if (condition.maxPrice > 0)
-                            "&aucmaxprice=${condition.maxPrice}"
-                        else
-                            ""
-
-                    val categoryParam =
-                        if (condition.categories.isNotBlank())
-                            "&category=${condition.categories.trim()}"
-                        else
-                            ""
-
                     val yahooUrl =
-                        "https://auctions.yahoo.co.jp/search/search?p=$encodedQuery$sortParam$priceMinParam$priceMaxParam$categoryParam&exflg=1&b=1&n=50"
+                        "https://auctions.yahoo.co.jp/search/search?p=$encodedQuery&exflg=1&b=1&n=50"
 
                     LogManager.d(
                         "SearchWorker",
@@ -88,7 +60,7 @@ object SearchWorker {
 
                     val doc =
                         Jsoup.connect(yahooUrl)
-                            .userAgent("Mozilla/5.0")
+                            .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                             .timeout(15000)
                             .get()
 
@@ -109,13 +81,13 @@ object SearchWorker {
                                     ".Product__titleLink, a.thm, a[href*='auction']"
                                 )
 
-                            val title =
-                                titleEl.text().toString()
+                            val rawTitle = titleEl.text()
+                            val title: String = if (rawTitle != null) rawTitle.toString() else ""
 
                             if (title.isBlank()) continue
 
-                            val itemUrl =
-                                titleEl.attr("href").toString()
+                            val rawHref = titleEl.attr("href")
+                            val itemUrl: String = if (rawHref != null) rawHref.toString() else ""
 
                             if (itemUrl.isBlank()) continue
 
@@ -154,15 +126,11 @@ object SearchWorker {
                             val imgEl =
                                 element.select("img")
 
-                            val imageUrl =
-                                (
-                                    imgEl.attr("data-src")
-                                        .takeIf { it.isNotBlank() }
-                                        ?: imgEl.attr("src")
-                                ).toString()
+                            val rawImg = imgEl.attr("data-src").takeIf { !it.isNullOrEmpty() } ?: imgEl.attr("src")
+                            val imageUrl: String = if (rawImg != null) rawImg.toString() else ""
 
-                            val cardText =
-                                element.text().toString()
+                            val rawCardText = element.text()
+                            val cardText: String = if (rawCardText != null) rawCardText.toString() else ""
 
                             var currentPrice = 0
                             var promptPrice = 0
@@ -196,8 +164,8 @@ object SearchWorker {
                                         ".Product__priceValue, .prc"
                                     ).first()
 
-                                val priceText =
-                                    priceElement?.text()?.toString() ?: ""
+                                val priceTextRaw = priceElement?.text()
+                                val priceText: String = if (priceTextRaw != null) priceTextRaw.toString() else ""
 
                                 val rawMatch =
                                     Regex("([0-9,]+)")
@@ -212,17 +180,7 @@ object SearchWorker {
                                         ?: 0
                             }
 
-                            var bidCount = 0
-
-                            val bidMatch =
-                                Regex("(?:入札[:\\s]*)?([0-9]+)件")
-                                    .find(cardText)
-
-                            if (bidMatch != null) {
-                                bidCount =
-                                    bidMatch.groupValues[1]
-                                        .toIntOrNull() ?: 0
-                            }
+                            val bidCount = 0
 
                             val shippingInfo =
                                 when {
@@ -302,9 +260,7 @@ object SearchWorker {
                 }
             }
 
-            // 🟨🟨🟨🟨🟨🟨🟨🟨🟨
-            // フリマ検索
-
+            // 2. フリマ検索
             if (condition.targetService != "auction") {
 
                 try {
@@ -319,7 +275,7 @@ object SearchWorker {
 
                     val doc =
                         Jsoup.connect(fleaUrl)
-                            .userAgent("Mozilla/5.0")
+                            .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                             .timeout(15000)
                             .get()
 
@@ -338,8 +294,8 @@ object SearchWorker {
                                 else
                                     element.select("a").first()
 
-                            val itemUrl =
-                                aEl?.attr("href")?.toString() ?: ""
+                            val rawHref = aEl?.attr("href")
+                            val itemUrl: String = if (rawHref != null) rawHref.toString() else ""
 
                             if (
                                 itemUrl.isBlank() ||
@@ -349,8 +305,8 @@ object SearchWorker {
                             val titleElement =
                                 element.select("div, span").first()
 
-                            val title =
-                                titleElement?.text()?.toString() ?: ""
+                            val rawTitle = titleElement?.text()
+                            val title: String = if (rawTitle != null) rawTitle.toString() else ""
 
                             if (
                                 title.isBlank() ||
@@ -388,17 +344,13 @@ object SearchWorker {
                             val imgEl =
                                 element.select("img")
 
-                            val imageUrl =
-                                (
-                                    imgEl.attr("data-src")
-                                        .takeIf { it.isNotBlank() }
-                                        ?: imgEl.attr("src")
-                                ).toString()
+                            val rawImg = imgEl.attr("data-src").takeIf { !it.isNullOrEmpty() } ?: imgEl.attr("src")
+                            val imageUrl: String = if (rawImg != null) rawImg.toString() else ""
 
                             if (imageUrl.isBlank()) continue
 
-                            val cardText =
-                                element.text().toString()
+                            val rawCardText = element.text()
+                            val cardText: String = if (rawCardText != null) rawCardText.toString() else ""
 
                             val priceMatch =
                                 Regex("([0-9,]+)円")
@@ -429,7 +381,7 @@ object SearchWorker {
                                 else
                                     "https://paypayfleamarket.yahoo.co.jp$itemUrl"
 
-                            val finalImgUrl =
+     val finalImgUrl =
                                 if (imageUrl.startsWith("http"))
                                     imageUrl
                                 else
