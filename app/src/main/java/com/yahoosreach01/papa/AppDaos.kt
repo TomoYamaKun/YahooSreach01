@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDaos.kt
-//ver 1.01-21
+//ver 1.01-29
 package com.yahoosreach01.papa
 
 import androidx.room.*
@@ -15,6 +15,10 @@ interface ItemDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: ItemEntity): Long
+
+    // 検索実行時に古い未除外アイテムをクリアして画面をリフレッシュする
+    @Query("DELETE FROM items WHERE conditionId = :conditionId AND isExcluded = 0")
+    suspend fun clearActiveItemsForCondition(conditionId: Long)
 
     @Query("UPDATE items SET isExcluded = 1 WHERE itemId = :itemId")
     suspend fun excludeItem(itemId: String)

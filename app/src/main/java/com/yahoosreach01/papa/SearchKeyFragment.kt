@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchKeyFragment.kt
-//ver 1.01-12
+//ver 1.01-30
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -30,7 +31,6 @@ class SearchKeyFragment : Fragment() {
         
         val db = AppDatabase.getDatabase(requireContext())
 
-        // アダプター生成時に編集と削除の処理を渡す
         adapter = SearchConditionAdapter(
             onEditClick = { condition -> showDialog(db, condition) },
             onDeleteClick = { condition -> deleteCondition(db, condition) }
@@ -45,22 +45,29 @@ class SearchKeyFragment : Fragment() {
         }
 
         binding.fabAdd.setOnClickListener {
-            showDialog(db, null) // nullを渡すと新規作成モード
+            showDialog(db, null)
         }
     }
 
-    // 新規と編集を共通のダイアログで処理
     private fun showDialog(db: AppDatabase, existingCondition: SearchConditionEntity?) {
         val dialogBinding = DialogAddConditionBinding.inflate(layoutInflater)
         
-        // 既存データがあればセット（編集モード）
+        // ソート順の選択肢セット (表示名とURLパラメータのマッピング)
+        val sortLabels = arrayOf("新着順 / おすすめ", "価格が安い順", "入札件数が多い順", "残り時間が短い順")
+        val sortValues = arrayOf("a", "s", "b", "e")
+        val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, sortLabels)
+        dialogBinding.spinnerSort.adapter = spinnerAdapter
+
         existingCondition?.let {
             dialogBinding.etPatternName.setText(it.patternName)
             dialogBinding.etSearchKeys.setText(it.searchKeys)
             dialogBinding.etExcludeKeys.setText(it.excludeKeys)
             dialogBinding.etMinPrice.setText(if (it.minPrice > 0) it.minPrice.toString() else "")
             dialogBinding.etMaxPrice.setText(if (it.maxPrice > 0) it.maxPrice.toString() else "")
-            dialogBinding.cbYahoo.isChecked = (it.targetService == "both")
+            dialogBinding.cbYahoo.isChecked = (it.targetService == "both" || it.targetService == "auction")
+            
+            val sortIndex = sortValues.indexOf(it.sortOrder)
+            if (sortIndex >= 0) dialogBinding.spinnerSort.setSelection(sortIndex)
         }
 
         val title = if (existingCondition == null) "検索パターン追加" else "検索パターン編集"
@@ -80,8 +87,8 @@ class SearchKeyFragment : Fragment() {
                 val minPrice = dialogBinding.etMinPrice.text.toString().toIntOrNull() ?: 0
                 val maxPrice = dialogBinding.etMaxPrice.text.toString().toIntOrNull() ?: 0
                 val target = if (dialogBinding.cbYahoo.isChecked) "both" else "fleamarket"
+                val selectedSort = sortValues[dialogBinding.spinnerSort.selectedItemPosition]
                 
-                // existingCondition がnullなら新規(id=0で自動採番)、既存ならそのIDを引継ぐ
                 val entity = SearchConditionEntity(
                     id = existingCondition?.id ?: 0, 
                     patternName = patternName,
@@ -90,7 +97,8 @@ class SearchKeyFragment : Fragment() {
                     minPrice = minPrice,
                     maxPrice = maxPrice,
                     categories = "",
-                    targetService = target
+                    targetService = target,
+                    sortOrder = selectedSort
                 )
                 
                 viewLifecycleOwner.lifecycleScope.launch {

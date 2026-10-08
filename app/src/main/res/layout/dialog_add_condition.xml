@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--//app/src/main/res/layout/dialog_add_condition.xml-->
-<!--ver 1.01-11-->
+<!--ver 1.01-30-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -22,7 +22,7 @@
             android:id="@+id/et_search_keys"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="検索キー (スペース区切り)"
+            android:hint="検索キー (例: (A B))"
             android:layout_marginTop="8dp"
             android:inputType="text" />
 
@@ -30,7 +30,7 @@
             android:id="@+id/et_exclude_keys"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="除外キー (スペース区切り)"
+            android:hint="除外キー (自動で-が付加されます)"
             android:layout_marginTop="8dp"
             android:inputType="text" />
 
@@ -63,13 +63,27 @@
                 android:inputType="number" />
         </LinearLayout>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="デフォルトソート順:"
+            android:layout_marginTop="12dp"
+            android:textSize="12sp"
+            android:textColor="#666666" />
+
+        <Spinner
+            android:id="@+id/spinner_sort"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" />
+
         <CheckBox
             android:id="@+id/cb_yahoo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="ヤフオクも含める (OFFでフリマのみ)"
             android:checked="true"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="12dp" />
 
     </LinearLayout>
 </ScrollView>
