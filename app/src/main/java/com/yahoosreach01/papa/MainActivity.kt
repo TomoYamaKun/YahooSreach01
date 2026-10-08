@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/MainActivity.kt
-//ver 1.01-07
+//ver 1.01-14
 package com.yahoosreach01.papa
 
 import android.os.Bundle
@@ -38,7 +38,8 @@ class MainActivity : AppCompatActivity() {
         
         binding.viewPager.isUserInputEnabled = false
 
-        val tabTitles = listOf("検索結果", "ログ", "検索キー", "除外キー", "除外商品")
+        // 除外キー単体タブを外し、検索キー（パターン管理）側で除外キーも設定する仕様に統合
+        val tabTitles = listOf("検索結果", "ログ", "検索キー", "除外商品")
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = tabTitles[position]
         }.attach()

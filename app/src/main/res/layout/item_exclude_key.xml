@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--//app/src/main/res/layout/item_exclude_key.xml-->
+<!--ver 1.01-13-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp"
+    android:background="#FFFFFF"
+    android:elevation="2dp"
+    android:gravity="center_vertical">
+
+    <CheckBox
+        android:id="@+id/cb_enabled"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/tv_keyword"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:textColor="#333333"
+        android:layout_marginStart="8dp" />
+
+    <ImageButton
+        android:id="@+id/btn_delete"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@android:drawable/ic_menu_delete"
+        android:background="?attr/selectableItemBackgroundBorderless" />
+
+</LinearLayout>

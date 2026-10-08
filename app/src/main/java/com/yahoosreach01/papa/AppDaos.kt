@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDaos.kt
-//ver 1.01-10
+//ver 1.01-14
 package com.yahoosreach01.papa
 
 import androidx.room.*
@@ -30,16 +30,10 @@ interface SearchConditionDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCondition(condition: SearchConditionEntity)
-}
 
-@Dao
-interface GlobalExcludeKeyDao {
-    @Query("SELECT * FROM global_exclude_keys")
-    fun getAllKeys(): Flow<List<GlobalExcludeKeyEntity>>
+    @Update
+    suspend fun updateCondition(condition: SearchConditionEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertKey(key: GlobalExcludeKeyEntity)
-    
     @Delete
-    suspend fun deleteKey(key: GlobalExcludeKeyEntity)
+    suspend fun deleteCondition(condition: SearchConditionEntity)
 }

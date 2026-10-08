@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDatabase.kt
-//ver 1.01-10
+//ver 1.01-14
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -8,14 +8,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ItemEntity::class, SearchConditionEntity::class, GlobalExcludeKeyEntity::class],
-    version = 1,
+    entities = [ItemEntity::class, SearchConditionEntity::class],
+    version = 2, // バージョンを2に上げて古いグローバル除外キーテーブルをクリア
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDao(): ItemDao
     abstract fun searchConditionDao(): SearchConditionDao
-    abstract fun globalExcludeKeyDao(): GlobalExcludeKeyDao
 
     companion object {
         @Volatile
@@ -27,7 +26,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "ysearch_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration() // DB構造変更時の自動リセット
+                .build()
                 INSTANCE = instance
                 instance
             }
