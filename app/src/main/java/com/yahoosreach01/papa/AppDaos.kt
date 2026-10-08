@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDaos.kt
-//ver 1.01-14
+//ver 1.01-21
 package com.yahoosreach01.papa
 
 import androidx.room.*
@@ -11,13 +11,16 @@ interface ItemDao {
     fun getAllActiveItems(): Flow<List<ItemEntity>>
 
     @Query("SELECT * FROM items WHERE isExcluded = 1 ORDER BY createdAt DESC")
-    fun getExcludedItems(): Flow<List<ItemEntity>>
+    fun getAllExcludedItems(): Flow<List<ItemEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: ItemEntity): Long
 
     @Query("UPDATE items SET isExcluded = 1 WHERE itemId = :itemId")
     suspend fun excludeItem(itemId: String)
+
+    @Query("UPDATE items SET isExcluded = 0 WHERE itemId = :itemId")
+    suspend fun restoreItem(itemId: String)
 
     @Query("UPDATE items SET isNew = 0")
     suspend fun markAllAsRead()
