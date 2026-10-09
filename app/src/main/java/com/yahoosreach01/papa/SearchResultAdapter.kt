@@ -1,7 +1,8 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultAdapter.kt
-//ver 1.01-26
+//ver 1.01-138
 package com.yahoosreach01.papa
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -32,10 +33,40 @@ class SearchResultAdapter(
         
         holder.binding.tvBadgeNew.visibility = if (item.isNew) View.VISIBLE else View.GONE
 
+        // ★ 背景色の動的変更ロジック
+        if (item.source == "fleamarket") {
+            // フリマは薄い黄色
+            holder.binding.root.setBackgroundColor(Color.parseColor("#FFFDE7"))
+        } else {
+            // オークションの残り時間に応じた背景色判定
+            var hoursLeft = 999.0
+            val endTimeStr = item.endTime ?: "-"
+            
+            if (endTimeStr.contains("時間")) {
+                val match = Regex("([0-9]+)\\s*時間").find(endTimeStr)
+                if (match != null) {
+                    hoursLeft = match.groupValues[1].toDoubleOrNull() ?: 999.0
+                }
+            } else if (endTimeStr.contains("分") && !endTimeStr.contains("日")) {
+                hoursLeft = 0.5 // 1時間未満の目安
+            }
+
+            if (hoursLeft <= 1.0) {
+                // 1時間以内：薄いピンク
+                holder.binding.root.setBackgroundColor(Color.parseColor("#FFEBEE"))
+            } else if (hoursLeft <= 12.0) {
+                // 12時間以内：薄い緑
+                holder.binding.root.setBackgroundColor(Color.parseColor("#E8F5E9"))
+            } else {
+                // 通常時：白
+                holder.binding.root.setBackgroundColor(Color.parseColor("#FFFFFF"))
+            }
+        }
+
         // フリマとオークションの正確な区分け表示
         if (item.source == "fleamarket") {
             holder.binding.tvSource.text = "フリマ"
-            holder.binding.tvSource.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50"))
+            holder.binding.tvSource.setBackgroundColor(Color.parseColor("#4CAF50"))
 
             val priceStr = if (item.promptDecisionPrice > 0) "${item.promptDecisionPrice}円" else "${item.currentPrice}円"
             holder.binding.tvCurrentPrice.text = "価格: $priceStr"
@@ -46,7 +77,7 @@ class SearchResultAdapter(
             holder.binding.tvEndTime.text = "終了: -"
         } else {
             holder.binding.tvSource.text = "オークション"
-            holder.binding.tvSource.setBackgroundColor(android.graphics.Color.parseColor("#FF5722"))
+            holder.binding.tvSource.setBackgroundColor(Color.parseColor("#FF5722"))
 
             // オークション：現在値 ＋ 入札数 ＋ 即決値(あれば) ＋ 送料
             val bidStr = if (item.bidCount > 0) " (入札:${item.bidCount}件)" else " (入札:0件)"
