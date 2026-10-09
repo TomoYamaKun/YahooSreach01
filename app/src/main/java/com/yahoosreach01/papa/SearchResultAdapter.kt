@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultAdapter.kt
-//ver 1.01-25
+//ver 1.01-26
 package com.yahoosreach01.papa
 
 import android.view.LayoutInflater
@@ -41,6 +41,9 @@ class SearchResultAdapter(
             holder.binding.tvCurrentPrice.text = "価格: $priceStr"
             holder.binding.tvPromptPrice.text = "送料: ${item.shippingInfo}"
             holder.binding.tvPromptPrice.visibility = View.VISIBLE
+
+            // フリマの場合は終了時間がないため非表示または "-"
+            holder.binding.tvEndTime.text = "終了: -"
         } else {
             holder.binding.tvSource.text = "オークション"
             holder.binding.tvSource.setBackgroundColor(android.graphics.Color.parseColor("#FF5722"))
@@ -52,6 +55,10 @@ class SearchResultAdapter(
             val promptPart = if (item.promptDecisionPrice > 0) "即決: ${item.promptDecisionPrice}円 / " else ""
             holder.binding.tvPromptPrice.text = "${promptPart}送料: ${item.shippingInfo}"
             holder.binding.tvPromptPrice.visibility = View.VISIBLE
+
+            // ★ オークションの終了時間表示（未取得や空なら "-" を設定して確実に表示）
+            val displayEndTime = if (!item.endTime.isNullOrBlank()) item.endTime else "-"
+            holder.binding.tvEndTime.text = "終了: $displayEndTime"
         }
 
         Glide.with(holder.itemView.context)

@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/ItemEntity.kt
-//ver 1.01-25
+//ver 1.01-96
 package com.yahoosreach01.papa
 
 import androidx.room.Entity
@@ -21,5 +21,6 @@ data class ItemEntity(
     val description: String?,
     val isNew: Boolean,
     val isExcluded: Boolean,
+    val endTime: String?, // 終了時間（オークション用）
     val createdAt: Long
 )

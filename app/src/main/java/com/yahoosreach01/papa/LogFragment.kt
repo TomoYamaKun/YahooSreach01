@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/LogFragment.kt
-//ver 1.01-08
+//ver 1.01-130
 package com.yahoosreach01.papa
 
 import android.os.Bundle
@@ -15,7 +15,8 @@ class LogFragment : Fragment() {
     private val binding get() = _binding!!
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentLogBinding.inflate(inflater, container, false)
@@ -24,36 +25,44 @@ class LogFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
-        refreshLogs()
 
-        binding.btnCopyNormal.setOnClickListener {
-            LogManager.copyToClipboard(requireContext(), isHtml = false)
-        }
+        try {
+            binding.btnCopyNormal.setOnClickListener {
+                context?.let { ctx -> LogManager.copyToClipboard(ctx, isHtml = false) }
+            }
 
-        binding.btnCopyHtml.setOnClickListener {
-            LogManager.copyToClipboard(requireContext(), isHtml = true)
-        }
+            binding.btnCopyHtml.setOnClickListener {
+                context?.let { ctx -> LogManager.copyToClipboard(ctx, isHtml = true) }
+            }
 
-        binding.btnClear.setOnClickListener {
-            LogManager.clearLogs()
+            binding.btnClear.setOnClickListener {
+                LogManager.clearLogs()
+                binding.tvLogContent.text = ""
+                binding.tvHtmlContent.text = ""
+            }
+
             refreshLogs()
+        } catch (e: Exception) {
+            LogManager.e("LogFragment", "初期化エラー", e)
         }
-
-        // タップでも通常ログをコピー
-        binding.tvLogContent.setOnClickListener {
-            LogManager.copyToClipboard(requireContext(), isHtml = false)
-        }
-    }
-
-    private fun refreshLogs() {
-        binding.tvLogContent.text = LogManager.getLogs()
-        binding.tvHtmlContent.text = LogManager.getHtmlLogs()
     }
 
     override fun onResume() {
         super.onResume()
         refreshLogs()
+    }
+
+    private fun refreshLogs() {
+        try {
+            binding.tvLogContent.text = LogManager.getLogs()
+            binding.tvHtmlContent.text = if (LogManager.isHtmlDebugEnabled) {
+                LogManager.getHtmlLogs()
+            } else {
+                "【HTMLデバッグは現在 OFF です（軽量化のため停止中）】\n※HTMLダンプを取得したい場合はコード内または設定で有効にしてください。"
+            }
+        } catch (e: Exception) {
+            // 例外処理
+        }
     }
 
     override fun onDestroyView() {

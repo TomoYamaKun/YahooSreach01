@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDaos.kt
-//ver 1.01-29
+//ver 1.01-96
 package com.yahoosreach01.papa
 
 import androidx.room.*
@@ -12,6 +12,10 @@ interface ItemDao {
 
     @Query("SELECT * FROM items WHERE isExcluded = 1 ORDER BY createdAt DESC")
     fun getAllExcludedItems(): Flow<List<ItemEntity>>
+
+    // SearchWorker等から一括で除外リストを取得するためのサスペンド関数を追加
+    @Query("SELECT * FROM items WHERE isExcluded = 1")
+    suspend fun getExcludedItemsList(): List<ItemEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: ItemEntity): Long
