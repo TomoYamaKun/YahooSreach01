@@ -1,10 +1,8 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultFragment.kt
-//ver 1.01-35
+//ver 1.01-84
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -124,9 +122,9 @@ class SearchResultFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle(item.title)
             .setView(scrollView)
-            .setPositiveButton("ブラウザで開く") { _, _ ->
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.url))
-                startActivity(intent)
+            .setPositiveButton("アプリ内で開く") { _, _ ->
+                // 外部ブラウザではなく、アプリ内の共通WebView（タブ）にURLを読み込ませる
+                openInAppWebView(item.url)
             }
             .setNeutralButton("除外する") { _, _ ->
                 viewLifecycleOwner.lifecycleScope.launch {
@@ -136,6 +134,28 @@ class SearchResultFragment : Fragment() {
             }
             .setNegativeButton("閉じる", null)
             .show()
+    }
+
+    private fun openInAppWebView(url: String) {
+        // MainActivity等を経由して、またはViewPagerのタブ等に存在するYahooLoginFragmentを探してURLをロードする
+        // ここではアクティビティ側の仕組みに合わせて、ViewPagerAdapterのタグやViewPagerの現在位置を利用するか、
+        // あるいはMainActivityに公開したメソッドを呼び出す形に連携します。
+        
+        val activity = requireActivity()
+        if (activity is MainActivity) {
+            activity.loadUrlInTab(url)
+        } else {
+            // 万が一Activityが異なる場合のフォールバックとしてYahooLoginFragmentを直接生成または検索
+            val fragment = parentFragmentManager.findFragmentByTag("f1") as? YahooLoginFragment 
+                ?: (parentFragmentManager.fragments.find { it is YahooLoginFragment } as? YahooLoginFragment)
+
+            if (fragment != null) {
+                fragment.loadItemUrl(url)
+                Toast.makeText(requireContext(), "タブ内ブラウザで開きました", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "ログイン・ブラウザタブが見つかりませんでした", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     override fun onDestroyView() {

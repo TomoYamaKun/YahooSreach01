@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/utils/LogManager.kt
-//ver 1.00-01
+//ver 1.01-02
 package com.yahoosreach01.papa.utils
 
 import android.content.ClipData
@@ -12,6 +12,7 @@ import java.util.Locale
 
 object LogManager {
     private val logs = mutableListOf<String>()
+    private val htmlLogs = mutableListOf<String>()
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
     fun d(tag: String, message: String) {
@@ -26,18 +27,28 @@ object LogManager {
         android.util.Log.e(tag, message, throwable)
     }
 
+    fun html(message: String) {
+        htmlLogs.add(message)
+    }
+
     fun getLogs(): String {
         return logs.joinToString("\n")
     }
 
-    fun copyToClipboard(context: Context) {
+    fun getHtmlLogs(): String {
+        return htmlLogs.joinToString("\n")
+    }
+
+    fun copyToClipboard(context: Context, isHtml: Boolean = false) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("AppLogs", getLogs())
+        val textToCopy = if (isHtml) getHtmlLogs() else getLogs()
+        val clip = ClipData.newPlainText(if (isHtml) "AppHtmlLogs" else "AppLogs", textToCopy)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(context, "ログをクリップボードにコピーしました", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, if (isHtml) "HTMLログをコピーしました" else "通常ログをコピーしました", Toast.LENGTH_SHORT).show()
     }
     
     fun clearLogs() {
         logs.clear()
+        htmlLogs.clear()
     }
 }

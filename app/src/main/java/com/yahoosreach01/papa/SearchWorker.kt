@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchWorker.kt
-//ver 1.01-73
+//ver 1.01-93
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -69,12 +69,15 @@ object SearchWorker {
                             .get()
 
                     val items =
-                        doc.select(".Product, li.clst, div.Product")
+                        doc.select("li[class*='sc-'], .Product, li.clst, div.Product, div[class*='Product__'], ul > li")
 
                     LogManager.d(
                         "SearchWorker",
                         "ヤフオク取得件数: ${items.size}"
                     )
+
+                    val htmlContent = doc.html()
+                    LogManager.html("--- ヤフオク HTMLダンプ開始 (全文字数: ${htmlContent.length}) ---\n$htmlContent\n--- HTMLダンプ終了 ---")
 
                     for (element in items) {
 
@@ -82,8 +85,8 @@ object SearchWorker {
 
                             val titleEl =
                                 element.select(
-                                    ".Product__titleLink, a.thm, a[href*='auction']"
-                                )
+                                    "a[href*='/auction/'], .Product__titleLink, a.thm, a[href*='auction'], p > a"
+                                ).first() ?: continue
 
                             val rawTitle = titleEl.text()
                             val title: String = if (rawTitle != null) rawTitle.toString() else ""
@@ -93,9 +96,9 @@ object SearchWorker {
                             val rawHref = titleEl.attr("href")
                             val itemUrl: String = if (rawHref != null) rawHref.toString() else ""
 
-                            if (itemUrl.isBlank()) continue
+                            if (itemUrl.isBlank() || !itemUrl.contains("auction")) continue
 
-                            val imgLinkEl = element.select("a.Product__imageLink, a[data-auction-id]")
+                            val imgLinkEl = element.select("a.Product__imageLink, a[data-auction-id], a[href*='auction']")
                             val dataAuctionId = imgLinkEl.attr("data-auction-id")
                             
                             val finalItemId = if (!dataAuctionId.isNullOrBlank()) {
@@ -114,8 +117,18 @@ object SearchWorker {
                                 }
                             }
 
-                            val imgEl = element.select("img")
-                            val rawImg = imgEl.attr("data-src").takeIf { !it.isNullOrEmpty() } ?: imgEl.attr("src")
+                            // 画像取得の優先順位を修正：HTMLダンプに存在する data-auction-img を最優先で取得
+                            val linkWithImg = element.select("a[data-auction-img]").first()
+                            val dataAucImg = linkWithImg?.attr("data-auction-img")?.takeIf { !it.isNullOrEmpty() }
+
+                            val imgEl = element.select("img").first()
+                            val rawImg = dataAucImg 
+                                ?: imgEl?.attr("data-src")?.takeIf { !it.isNullOrEmpty() }
+                                ?: imgEl?.attr("data-original")?.takeIf { !it.isNullOrEmpty() }
+                                ?: imgEl?.attr("src")?.takeIf { !it.isNullOrEmpty() }
+                                ?: imgEl?.attr("srcset")?.takeIf { !it.isNullOrEmpty() }
+                                ?: ""
+
                             val imageUrl: String = if (rawImg != null) rawImg.toString() else ""
 
                             val rawCardText = element.text()
@@ -149,7 +162,7 @@ object SearchWorker {
                             if (currentPrice == 0 && promptPrice == 0) {
                                 val priceElement =
                                     element.select(
-                                        ".Product__priceValue, .prc"
+                                        ".Product__priceValue, .prc, span[class*='price']"
                                     ).first()
 
                                 val priceTextRaw = priceElement?.text()
@@ -168,11 +181,15 @@ object SearchWorker {
                                         ?: 0
                             }
 
-                            // 【入札件数の取得改善】カードテキストの中から「数字＋件」を正確にキャプチャする（例：「15件」の15）
                             var bidCount = 0
-                            val bidMatch = Regex("([0-9]+)件").find(cardText)
-                            if (bidMatch != null) {
-                                bidCount = bidMatch.groupValues[1].toIntOrNull() ?: 0
+                            val bidElement = element.select(".Product__bid, dd.Product__bid").first()
+                            if (bidElement != null) {
+                                bidCount = bidElement.text().trim().replace(",", "").toIntOrNull() ?: 0
+                            } else {
+                                val altBidElement = element.select("a[href*='bid_hist']")
+                                if (altBidElement.isNotEmpty()) {
+                                    bidCount = altBidElement.text().trim().replace(",", "").toIntOrNull() ?: 0
+                                }
                             }
 
                             val shippingInfo =
@@ -209,8 +226,10 @@ object SearchWorker {
                             val finalImgUrl =
                                 if (imageUrl.startsWith("http"))
                                     imageUrl
-                                else
+                                else if (imageUrl.startsWith("//"))
                                     "https:$imageUrl"
+                                else
+                                    imageUrl
 
                             fetchedItems.add(
                                 ItemEntity(
@@ -329,10 +348,21 @@ object SearchWorker {
                                     ""
                                 }
 
-                            if (fleaId.isBlank()) continue
+                            val imgEl = element.select("img").first()
+                            var rawImg = imgEl?.attr("data-src")?.takeIf { !it.isNullOrEmpty() }
+                                ?: imgEl?.attr("data-original")?.takeIf { !it.isNullOrEmpty() }
+                                ?: imgEl?.attr("src")?.takeIf { !it.isNullOrEmpty() }
+                                ?: imgEl?.attr("srcset")?.takeIf { !it.isNullOrEmpty() }
+                                ?: ""
 
-                            val imgEl = element.select("img")
-                            val rawImg = imgEl.attr("data-src").takeIf { !it.isNullOrEmpty() } ?: imgEl.attr("src")
+                            if (rawImg.isBlank()) {
+                                val styleAttr = element.select("[style*='background-image']").attr("style")
+                                val bgMatch = Regex("url\\(['\"]?(.*?)['\"]?\\)").find(styleAttr)
+                                if (bgMatch != null) {
+                                    rawImg = bgMatch.groupValues[1]
+                                }
+                            }
+
                             val imageUrl: String = if (rawImg != null) rawImg.toString() else ""
 
                             if (imageUrl.isBlank()) continue
@@ -375,8 +405,10 @@ object SearchWorker {
                             val finalImgUrl =
                                 if (imageUrl.startsWith("http"))
                                     imageUrl
-                                else
+                                else if (imageUrl.startsWith("//"))
                                     "https:$imageUrl"
+                                else
+                                    imageUrl
 
                             fetchedItems.add(
                                 ItemEntity(

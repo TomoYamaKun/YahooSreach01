@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/LogFragment.kt
-//ver 1.01-07
+//ver 1.01-08
 package com.yahoosreach01.papa
 
 import android.os.Bundle
@@ -25,16 +25,35 @@ class LogFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        binding.tvLogContent.text = LogManager.getLogs()
+        refreshLogs()
 
-        binding.root.setOnClickListener {
-            LogManager.copyToClipboard(requireContext())
+        binding.btnCopyNormal.setOnClickListener {
+            LogManager.copyToClipboard(requireContext(), isHtml = false)
         }
+
+        binding.btnCopyHtml.setOnClickListener {
+            LogManager.copyToClipboard(requireContext(), isHtml = true)
+        }
+
+        binding.btnClear.setOnClickListener {
+            LogManager.clearLogs()
+            refreshLogs()
+        }
+
+        // タップでも通常ログをコピー
+        binding.tvLogContent.setOnClickListener {
+            LogManager.copyToClipboard(requireContext(), isHtml = false)
+        }
+    }
+
+    private fun refreshLogs() {
+        binding.tvLogContent.text = LogManager.getLogs()
+        binding.tvHtmlContent.text = LogManager.getHtmlLogs()
     }
 
     override fun onResume() {
         super.onResume()
-        binding.tvLogContent.text = LogManager.getLogs()
+        refreshLogs()
     }
 
     override fun onDestroyView() {
