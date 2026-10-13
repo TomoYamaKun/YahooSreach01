@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/PayPayFleaParser.kt
-//ver 1.01-180
+//ver 1.01-184
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -12,13 +12,24 @@ object PayPayFleaParser {
 
         LogManager.isHtmlDebugEnabled = false
 
+        // ★ キーワードのスペースを %20 に置換し、括弧などの記号をそのまま維持するフォーマット
+        val rawQuery = (condition.searchKeys.trim() + if (condition.excludeKeys.isNotBlank()) {
+            " " + condition.excludeKeys.trim().split("\\s+".toRegex()).joinToString(" ") { if (it.startsWith("-")) it else "-$it" }
+        } else {
+            ""
+        }).trim()
+        
+        val formattedQuery = rawQuery.replace(" ", "%20")
+
+        // カテゴリパラメータ (例: categoryIds=2502%2C88%2C98)
         val categoryParam = if (condition.categories.isNotBlank()) {
             val fleaPath = condition.categories.split(",")
                 .map { it.trim() }
                 .firstOrNull { it.contains("/") } ?: ""
             
             if (fleaPath.isNotBlank()) {
-                "&category=$fleaPath"
+                val encodedCatIds = fleaPath.replace("/", "%2C")
+                "&categoryIds=$encodedCatIds"
             } else {
                 ""
             }
@@ -29,15 +40,15 @@ object PayPayFleaParser {
         val priceMinParam = if (condition.minPrice > 0) "&minPrice=${condition.minPrice}" else ""
         val priceMaxParam = if (condition.maxPrice > 0) "&maxPrice=${condition.maxPrice}" else ""
 
-        // ★ Yahooオークションと同様に、フリマでも複数のソートモード（価格順、新着順、いいね順）でそれぞれ検索を行って網羅性を高める
+        // ★ ブラウザの正しいURL構造（withSpeller=0 を含めた完全なパラメータ仕様）に準拠した3つのソートモード
         val sortModes = listOf(
-            "&sort=price" to "価格順（安い順）",
-            "&sort=openTime&order=desc" to "新着順",
-            "&sort=likeCounts&order=desc" to "いいね順"
+            "&withSpeller=0&sort=price&order=asc" to "価格が安い順",
+            "&withSpeller=0&sort=openTime&order=desc" to "新着順",
+            "&withSpeller=0&sort=likeCounts&order=desc" to "いいね順"
         )
 
         for ((sortParam, modeName) in sortModes) {
-            val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery?open=1$categoryParam$priceMinParam$priceMaxParam$sortParam"
+            val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$formattedQuery?open=1$categoryParam$priceMinParam$priceMaxParam$sortParam"
 
             try {
                 LogManager.d(
