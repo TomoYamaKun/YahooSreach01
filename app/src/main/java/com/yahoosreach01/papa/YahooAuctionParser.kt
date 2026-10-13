@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/YahooAuctionParser.kt
-//ver 1.01-193
+//ver 1.01-194
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -13,12 +13,11 @@ object YahooAuctionParser {
     fun parse(condition: SearchConditionEntity, encodedQuery: String, excludedIds: Set<String>, excludedUrls: Set<String>, currentTime: Long): List<ItemEntity> {
         val fetchedItems = mutableMapOf<String, ItemEntity>()
 
-        // すべてのソートモードで、ブラウザが成功している安定の opensearch エンドポイントを使用する
         val sortModes = listOf(
             "" to "おすすめ順",
-            "s2=1" to "最安値順",
-            "s3=1" to "終了時間間近",
-            "s4=1" to "入札件数多い"
+            "s2" to "最安値順",
+            "s3" to "終了時間間近",
+            "s4" to "入札件数多い"
         )
 
         // 除外キーワードを "-キーワード" の形式に整形してクエリに結合
@@ -31,7 +30,7 @@ object YahooAuctionParser {
         val fullQuery = baseQuery + excludePart
         val formattedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8").replace("+", "%20")
 
-        // カテゴリパラメータ (auccat)
+        // ヤフオク用の正しいカテゴリパラメータ（auccat）
         val categoryParam = if (condition.categories.isNotBlank()) {
             val catId = condition.categories.split(",")
                 .map { it.trim() }
@@ -42,49 +41,52 @@ object YahooAuctionParser {
         }
 
         for ((sortParam, modeName) in sortModes) {
-            val pageOffsets = listOf(1, 51, 101)
+            val pageOffsets = if (sortParam == "s3") listOf(1, 51) else listOf(1, 101)
 
             for (bParam in pageOffsets) {
                 try {
-                    val pageNum = (bParam - 1) / 50 + 1
-                    LogManager.d("YahooAuctionParser", "「${condition.patternName}」: $modeName ($pageNum ページ目 / b=$bParam) 取得中...")
+                    val pageNum = if (bParam <= 1) 1 else 2
+                    LogManager.d("YahooAuctionParser", "「${condition.patternName}」: $modeName ($pageNum ページ目) 取得中...")
 
-                    // ブラウザ成功URLと完全に一致する min / max パラメータ
-                    val priceMinParam = if (condition.minPrice > 0) "&min=${condition.minPrice}" else ""
-                    val priceMaxParam = if (condition.maxPrice > 0) "&max=${condition.maxPrice}" else ""
+                    // ヤフオクの正しい公式価格パラメータ名 aucminprice / aucmaxprice
+                    val priceMinParam = if (condition.minPrice > 0) "&aucminprice=${condition.minPrice}" else ""
+                    val priceMaxParam = if (condition.maxPrice > 0) "&aucmaxprice=${condition.maxPrice}" else ""
 
-                    val modeQueryParam = if (sortParam.isNotEmpty()) "&$sortParam" else ""
-
-                    // ★ ブラウザが成功しているのと全く同じ opensearch URL 構造に完全統一
-                    val yahooUrl = "https://auctions.yahoo.co.jp/opensearch?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam$modeQueryParam&f=0x4&fixed=0&price_type=currentprice&b=$bParam&n=50&select=5&mode=2&dest_pref_code=27"
+                    // 404を完全に回避しつつ確実にカテゴリと価格を適用する安定の search/search 構造
+                    val yahooUrl = if (sortParam == "s3") {
+                        "https://auctions.yahoo.co.jp/search/search?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam&s3=1&exflg=1&b=$bParam&n=100"
+                    } else {
+                        val modeParam = if (sortParam.isNotEmpty()) "&$sortParam=1" else ""
+                        "https://auctions.yahoo.co.jp/search/search?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam$modeParam&exflg=1&b=$bParam&n=100"
+                    }
 
                     LogManager.d(
                         "YahooAuctionParser",
                         "ヤフオク検索URL ($modeName P$pageNum): $yahooUrl"
                     )
 
-                    val doc = try {
+                    val doc =
                         Jsoup.connect(yahooUrl)
                             .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                             .timeout(15000)
                             .get()
-                    } catch (e: Exception) {
-                        LogManager.e("YahooAuctionParser", "ヤフオク接続エラー ($modeName P$pageNum): ${e.message}")
-                        continue
-                    }
 
-                    val items = doc.select(".Product, li.Product, div.Product, li[class*='Product'], div[class*='Product'], li.clst, div.clst, li[class*='clst']")
+                    val items =
+                        doc.select(".Product, li.Product, div.Product, li[class*='Product'], div[class*='Product'], li.clst, div.clst, li[class*='clst']")
 
                     LogManager.d(
                         "YahooAuctionParser",
                         "ヤフオク取得件数 ($modeName P$pageNum): ${items.size}"
                     )
 
-                    if (items.isEmpty()) break
+                    if (items.isEmpty() && pageNum > 1) break
 
                     for (element in items) {
                         try {
-                            val titleEl = element.select(".Product__titleLink, a.Product__titleLink, a.thm, a[href*='/auction/']").first() ?: continue
+                            val titleEl =
+                                element.select(
+                                    ".Product__titleLink, a.Product__titleLink, a.thm, a[href*='/auction/']"
+                                ).first() ?: continue
 
                             val rawTitle = titleEl.text()
                             val title: String = if (rawTitle != null) rawTitle.toString().trim() else ""
@@ -115,9 +117,16 @@ object YahooAuctionParser {
                                 }
                             }
 
-                            val finalUrl = if (itemUrl.startsWith("http")) itemUrl else "https://auctions.yahoo.co.jp$itemUrl"
+                            val finalUrl =
+                                if (itemUrl.startsWith("http"))
+                                    itemUrl
+                                else
+                                    "https://auctions.yahoo.co.jp$itemUrl"
 
-                            if (excludedIds.contains(finalItemId) || excludedUrls.contains(finalUrl)) continue
+                            if (excludedIds.contains(finalItemId) || excludedUrls.contains(finalUrl)) {
+                                continue
+                            }
+
                             if (fetchedItems.containsKey(finalItemId)) continue
 
                             val linkWithImg = element.select("a[data-auction-img]").first()
@@ -139,23 +148,46 @@ object YahooAuctionParser {
                             var currentPrice = 0
                             var promptPrice = 0
 
-                            val currentMatch = Regex("현재[:\\s]*([0-9,]+)円|現在[:\\s]*([0-9,]+)円").find(cardText)
+                            val currentMatch =
+                                Regex("현재[:\\s]*([0-9,]+)円|現在[:\\s]*([0-9,]+)円")
+                                    .find(cardText)
+
                             if (currentMatch != null) {
                                 val priceStr = currentMatch.groupValues[1].ifEmpty { currentMatch.groupValues[2] }
                                 currentPrice = priceStr.replace(",", "").toIntOrNull() ?: 0
                             }
 
-                            val promptMatch = Regex("即決[:\\s]*([0-9,]+)円").find(cardText)
+                            val promptMatch =
+                                Regex("即決[:\\s]*([0-9,]+)円")
+                                    .find(cardText)
+
                             if (promptMatch != null) {
-                                promptPrice = promptMatch.groupValues[1].replace(",", "").toIntOrNull() ?: 0
+                                promptPrice =
+                                    promptMatch.groupValues[1]
+                                        .replace(",", "")
+                                        .toIntOrNull() ?: 0
                             }
 
                             if (currentPrice == 0 && promptPrice == 0) {
-                                val priceElement = element.select(".Product__priceValue, .prc, span[class*='price']").first()
+                                val priceElement =
+                                    element.select(
+                                        ".Product__priceValue, .prc, span[class*='price']"
+                                    ).first()
+
                                 val priceTextRaw = priceElement?.text()
                                 val priceText: String = if (priceTextRaw != null) priceTextRaw.toString() else ""
-                                val rawMatch = Regex("([0-9,]+)").find(priceText)
-                                currentPrice = rawMatch?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull() ?: 0
+
+                                val rawMatch =
+                                    Regex("([0-9,]+)")
+                                        .find(priceText)
+
+                                currentPrice =
+                                    rawMatch
+                                        ?.groupValues
+                                        ?.get(1)
+                                        ?.replace(",", "")
+                                        ?.toIntOrNull()
+                                        ?: 0
                             }
 
                             if (currentPrice == 0 && promptPrice == 0) continue
@@ -208,16 +240,30 @@ object YahooAuctionParser {
                                 endTime = "-"
                             }
 
-                            val shippingInfo = when {
-                                cardText.contains("送料無料") || cardText.contains("送料込") -> "送料無料"
-                                cardText.contains("着払い") -> "着払い"
-                                else -> {
-                                    val shipMatch = Regex("送料[:\\s]*([0-9,]+)円").find(cardText)
-                                    if (shipMatch != null) "${shipMatch.groupValues[1]}円" else "詳細確認"
-                                }
-                            }
+                            val shippingInfo =
+                                when {
+                                    cardText.contains("送料無料") ||
+                                            cardText.contains("送料込") ->
+                                        "送料無料"
 
-                            if (element.select(".Product__status--ended, .end").isNotEmpty()) continue
+                                    cardText.contains("着払い") ->
+                                        "着払い"
+
+                                    else -> {
+                                        val shipMatch =
+                                            Regex(
+                                                "送料[:\\s]*([0-9,]+)円"
+                                            ).find(cardText)
+
+                                        if (shipMatch != null) "${shipMatch.groupValues[1]}円" else "詳細確認"
+                                    }
+                                }
+
+                            if (
+                                element.select(
+                                    ".Product__status--ended, .end"
+                                ).isNotEmpty()
+                            ) continue
 
                             fetchedItems[finalItemId] = ItemEntity(
                                 itemId = finalItemId,
