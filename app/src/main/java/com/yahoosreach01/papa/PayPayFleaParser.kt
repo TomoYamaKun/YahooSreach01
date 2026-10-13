@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/PayPayFleaParser.kt
-//ver 1.01-145
+//ver 1.01-167
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -10,18 +10,21 @@ object PayPayFleaParser {
     fun parse(condition: SearchConditionEntity, encodedQuery: String, excludedIds: Set<String>, excludedUrls: Set<String>, currentTime: Long): List<ItemEntity> {
         val fetchedItems = mutableMapOf<String, ItemEntity>()
 
-        // HTMLデバッグを有効化
         LogManager.isHtmlDebugEnabled = false
 
-        // カテゴリパスの構築（例: 2502/88/98 が設定されている場合は /category/2502/88/98 を付与）
+        // ★ フリマ用カテゴリパスの構築（数値のみのIDはヤフオク用なのでフリマでは無視する）
         val categoryPath = if (condition.categories.isNotBlank()) {
             val cleanCat = condition.categories.trim('/')
-            if (cleanCat.isNotEmpty()) "/category/$cleanCat" else ""
+            // 数値のみ（例: "23372"）の場合はフリマURL構造に合わないため除外
+            if (cleanCat.isNotEmpty() && !cleanCat.matches(Regex("^[0-9,]+$"))) {
+                "/category/$cleanCat"
+            } else {
+                ""
+            }
         } else {
             ""
         }
 
-        // ★ 販売中のみを対象とするため ?open=1 を付与
         val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery$categoryPath?open=1"
 
         val sortModes = listOf(
@@ -46,8 +49,6 @@ object PayPayFleaParser {
                 }
 
                 val htmlContent = doc.html()
-                LogManager.html("--- フリマ HTMLダンプ開始 [$modeName] (全文字数: ${htmlContent.length}) ---\n$htmlContent\n--- HTMLダンプ終了 ---")
-
                 val fleaItems = doc.select("a[href*='/item/'], div[data-reactid], li, div[class*='ItemCard']")
 
                 LogManager.d(
@@ -70,7 +71,6 @@ object PayPayFleaParser {
 
                         val rawCardText = element.text() ?: ""
 
-                        // ★ Sold Out（売り切れ・販売終了）の厳格な二重除外
                         val lowerCardText = rawCardText.lowercase()
                         if (lowerCardText.contains("sold") || 
                             lowerCardText.contains("売り切れ") || 
@@ -79,7 +79,6 @@ object PayPayFleaParser {
                             continue
                         }
 
-                        // タイトル抽出
                         var rawTitle = ""
                         val imgEl = element.select("img").first()
                         if (imgEl != null) {
@@ -163,7 +162,6 @@ object PayPayFleaParser {
                         if (condition.minPrice > 0 && price < condition.minPrice) continue
                         if (condition.maxPrice > 0 && price > condition.maxPrice) continue
 
-                        // ★ タイポ修正箇所 (rawCardTest -> rawCardText)
                         val shippingInfo = if (rawCardText.contains("送料無料") || rawCardText.contains("送料込み")) {
                             "送料無料"
                         } else {

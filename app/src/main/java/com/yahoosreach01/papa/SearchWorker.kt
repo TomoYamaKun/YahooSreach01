@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchWorker.kt
-//ver 1.01-146
+//ver 1.01-167
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -18,7 +18,6 @@ object SearchWorker {
 
             db.itemDao().clearActiveItemsForCondition(conditionId)
 
-            // 検索条件ごとに独立した除外リストを取得
             val excludedItems = db.itemDao().getExcludedItemsListForCondition(conditionId)
             val excludedIds = excludedItems.map { it.itemId }.toSet()
             val excludedUrls = excludedItems.map { it.url }.toSet()
@@ -63,24 +62,25 @@ object SearchWorker {
                 fetchedItems.addAll(fleaItems)
             }
 
-            // 3. Sort logic
+            // 3. Sort logic ("a": おすすめ/新着, "s": 価格安い順, "b": 入札件数多い, "e": 終了時間間近)
             val sortedItems = when (condition.sortOrder) {
                 "s" -> fetchedItems.sortedBy { item ->
                     val p = if (item.currentPrice > 0) item.currentPrice else item.promptDecisionPrice
                     if (p > 0) p else Int.MAX_VALUE
                 }
                 "b" -> fetchedItems.sortedByDescending { item -> item.bidCount }
-                else -> fetchedItems.sortedByDescending { item -> item.createdAt }
+                "e" -> fetchedItems.sortedBy { item -> item.endTime ?: "-" }
+                else -> fetchedItems.sortedByDescending { item -> item.createdAt } // "a" またはデフォルト
             }
 
-            // 4. Database madhe insert karne
+            // 4. Database insert
             for (item in sortedItems) {
                 db.itemDao().insertItem(item)
             }
 
             LogManager.d(
                 "SearchWorker",
-                "「${condition.patternName}」chya sarva shozh aani sōto purna zali aahe (Gōkei: ${sortedItems.size} items)"
+                "「${condition.patternName}」検索およびソート完了 (合計: ${sortedItems.size}件)"
             )
         }
     }
