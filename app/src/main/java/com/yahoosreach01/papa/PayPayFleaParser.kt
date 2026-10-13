@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/PayPayFleaParser.kt
-//ver 1.01-170
+//ver 1.01-180
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -12,7 +12,6 @@ object PayPayFleaParser {
 
         LogManager.isHtmlDebugEnabled = false
 
-        // ★ フリマ用カテゴリの構築（パスではなくクエリパラメータ ?category=... 形式に修正）
         val categoryParam = if (condition.categories.isNotBlank()) {
             val fleaPath = condition.categories.split(",")
                 .map { it.trim() }
@@ -27,22 +26,27 @@ object PayPayFleaParser {
             ""
         }
 
-        // 正しいフリマの検索URL構造（クエリパラメータでcategoryを指定）
-        val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery?open=1$categoryParam"
+        val priceMinParam = if (condition.minPrice > 0) "&minPrice=${condition.minPrice}" else ""
+        val priceMaxParam = if (condition.maxPrice > 0) "&maxPrice=${condition.maxPrice}" else ""
 
+        // ★ Yahooオークションと同様に、フリマでも複数のソートモード（価格順、新着順、いいね順）でそれぞれ検索を行って網羅性を高める
         val sortModes = listOf(
-            fleaUrl to "販売中・おすすめ順（フリマ）"
+            "&sort=price" to "価格順（安い順）",
+            "&sort=openTime&order=desc" to "新着順",
+            "&sort=likeCounts&order=desc" to "いいね順"
         )
 
-        for ((targetUrl, modeName) in sortModes) {
+        for ((sortParam, modeName) in sortModes) {
+            val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery?open=1$categoryParam$priceMinParam$priceMaxParam$sortParam"
+
             try {
                 LogManager.d(
                     "PayPayFleaParser",
-                    "「${condition.patternName}」フリマ検索URL ($modeName): $targetUrl"
+                    "「${condition.patternName}」フリマ検索URL ($modeName): $fleaUrl"
                 )
 
                 val doc = try {
-                    Jsoup.connect(targetUrl)
+                    Jsoup.connect(fleaUrl)
                         .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                         .timeout(15000)
                         .get()
@@ -63,8 +67,10 @@ object PayPayFleaParser {
                         val aEl = if (element.tagName() == "a") {
                             element
                         } else {
-                            element.select("a[href*='/item/']").first() ?: element.select("a").first() ?: continue
+                            element.select("a[href*='/item/']").first() ?: element.select("a").first() 
                         }
+
+                        if (aEl == null) continue
 
                         val rawHref = aEl.attr("href")
                         val itemUrl: String = if (rawHref != null) rawHref.toString() else ""
@@ -156,11 +162,11 @@ object PayPayFleaParser {
                         val imageUrl: String = if (rawImg.startsWith("http")) rawImg else if (rawImg.startsWith("//")) "https:$rawImg" else rawImg
                         if (imageUrl.isBlank()) continue
 
-                        val priceMatch = Regex("([0-9,]+)円").find(rawCardText)
-                        val price = priceMatch?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull() ?: 0
+                        val priceMatches = Regex("([0-9,]+)円").findAll(rawCardText).toList()
+                        val extractedPrices = priceMatches.map { it.groupValues[1].replace(",", "").toIntOrNull() ?: 0 }.filter { it > 0 }
+                        val price = extractedPrices.firstOrNull() ?: 0
 
                         if (price == 0) continue
-
                         if (condition.minPrice > 0 && price < condition.minPrice) continue
                         if (condition.maxPrice > 0 && price > condition.maxPrice) continue
 
@@ -190,7 +196,7 @@ object PayPayFleaParser {
                         )
 
                     } catch (e: Exception) {
-                        LogManager.e("PayPayFleaParser", "フリマ個別パースエラー", e)
+                        LogManager.e("PayPayFleaParser", "フリマ個別パースエラー ($modeName)", e)
                     }
                 }
 
@@ -199,6 +205,7 @@ object PayPayFleaParser {
             }
         }
 
+        LogManager.d("PayPayFleaParser", "フリマ全ソート合計取得完了: 成功 ${fetchedItems.size}件")
         return fetchedItems.values.toList()
     }
 }
