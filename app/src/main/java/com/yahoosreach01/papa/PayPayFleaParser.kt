@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/PayPayFleaParser.kt
-//ver 1.01-169
+//ver 1.01-170
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -12,15 +12,14 @@ object PayPayFleaParser {
 
         LogManager.isHtmlDebugEnabled = false
 
-        // ★ カンマ区切りから「スラッシュを含むパス（フリマ用カテゴリパス）」を抽出する
-        val categoryPath = if (condition.categories.isNotBlank()) {
+        // ★ フリマ用カテゴリの構築（パスではなくクエリパラメータ ?category=... 形式に修正）
+        val categoryParam = if (condition.categories.isNotBlank()) {
             val fleaPath = condition.categories.split(",")
                 .map { it.trim() }
                 .firstOrNull { it.contains("/") } ?: ""
             
             if (fleaPath.isNotBlank()) {
-                val cleanCat = fleaPath.trim('/')
-                if (cleanCat.isNotEmpty()) "/category/$cleanCat" else ""
+                "&category=$fleaPath"
             } else {
                 ""
             }
@@ -28,7 +27,8 @@ object PayPayFleaParser {
             ""
         }
 
-        val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery$categoryPath?open=1"
+        // 正しいフリマの検索URL構造（クエリパラメータでcategoryを指定）
+        val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery?open=1$categoryParam"
 
         val sortModes = listOf(
             fleaUrl to "販売中・おすすめ順（フリマ）"
