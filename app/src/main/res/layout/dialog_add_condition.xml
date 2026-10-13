@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--//app/src/main/res/layout/dialog_add_condition.xml-->
-<!--ver 1.01-39-->
+<!--ver 1.01-166-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -63,22 +63,53 @@
                 android:inputType="number" />
         </LinearLayout>
 
-        <!-- カテゴリ指定フィールド -->
-        <EditText
-            android:id="@+id/et_categories"
+        <!-- カテゴリ指定フィールド ＋ 選択ボタン -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="対象カテゴリID (複数可: カンマ区切り)"
             android:layout_marginTop="8dp"
-            android:inputType="text" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <EditText
-            android:id="@+id/et_exclude_categories"
+            <EditText
+                android:id="@+id/et_categories"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="対象カテゴリID (カンマ区切り)"
+                android:inputType="text" />
+
+            <Button
+                android:id="@+id/btn_select_category"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="選択"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <!-- 除外カテゴリ指定フィールド ＋ 選択ボタン -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="除外カテゴリID (複数可: カンマ区切り)"
             android:layout_marginTop="8dp"
-            android:inputType="text" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/et_exclude_categories"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="除外カテゴリID (カンマ区切り)"
+                android:inputType="text" />
+
+            <Button
+                android:id="@+id/btn_select_exclude_category"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="選択"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"

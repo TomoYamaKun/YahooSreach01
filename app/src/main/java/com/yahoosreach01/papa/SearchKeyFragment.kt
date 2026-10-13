@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchKeyFragment.kt
-//ver 1.01-159
+//ver 1.01-165
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
@@ -26,21 +27,17 @@ class SearchKeyFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var adapter: SearchConditionAdapter
 
-    // Gson不使用：シンプルなテキストデータとしてのエクスポート処理
     private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let {
             try {
                 val db = AppDatabase.getDatabase(requireContext())
                 viewLifecycleOwner.lifecycleScope.launch {
                     val conditions = db.searchConditionDao().getAllConditions().first()
-                    
-                    // 簡易的なCSVまたはプレーンなテキストとして保存（パースエラー回避のため安全な形式）
                     val sb = StringBuilder()
                     sb.append("--- CONDITIONS ---\n")
                     for (c in conditions) {
                         sb.append("${c.id}|${c.patternName}|${c.searchKeys}|${c.excludeKeys}|${c.minPrice}|${c.maxPrice}|${c.targetService}|${c.sortOrder}\n")
                     }
-                    
                     requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
                         OutputStreamWriter(outputStream, "UTF-8").use { writer ->
                             writer.write(sb.toString())
@@ -52,12 +49,6 @@ class SearchKeyFragment : Fragment() {
             } catch (e: Exception) {
                 Toast.makeText(requireContext(), "エクスポート失敗: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let {
-            Toast.makeText(requireContext(), "インポート処理は現在調整中です", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -89,22 +80,93 @@ class SearchKeyFragment : Fragment() {
         }
 
         binding.recyclerView.setOnLongClickListener {
-            showBackupMenu()
+            showManagementMenu(db)
             true
         }
     }
 
-    private fun showBackupMenu() {
-        val options = arrayOf("検索条件ファイル出力 (エクスポート)", "ファイルから取込 (インポート)")
+    private fun showManagementMenu(db: AppDatabase) {
+        val options = arrayOf("登録カテゴリの管理（一覧・編集・削除）", "検索条件ファイル出力 (エクスポート)")
         AlertDialog.Builder(requireContext())
-            .setTitle("バックアップ・データ移行")
+            .setTitle("データ・カテゴリ管理")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> exportLauncher.launch("search_conditions_backup.txt")
-                    1 -> importLauncher.launch(arrayOf("text/*", "application/json"))
+                    0 -> showCategoryManagerDialog(db)
+                    1 -> exportLauncher.launch("search_conditions_backup.txt")
                 }
             }
             .setNegativeButton("キャンセル", null)
+            .show()
+    }
+
+    private fun showCategoryManagerDialog(db: AppDatabase) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val categories = db.categoryDao().getAllCategoriesList()
+            if (categories.isEmpty()) {
+                Toast.makeText(requireContext(), "登録されたカテゴリがありません", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val items = categories.map { "[${it.platform}] ${it.categoryName} (${it.categoryValue})" }.toTypedArray()
+
+            AlertDialog.Builder(requireContext())
+                .setTitle("登録カテゴリ一覧（タップで編集・削除）")
+                .setItems(items) { _, index ->
+                    val selectedCat = categories[index]
+                    showEditOrDeleteCategoryDialog(db, selectedCat)
+                }
+                .setPositiveButton("閉じる", null)
+                .show()
+        }
+    }
+
+    private fun showEditOrDeleteCategoryDialog(db: AppDatabase, cat: CategoryEntity) {
+        val options = arrayOf("編集する", "削除する")
+        AlertDialog.Builder(requireContext())
+            .setTitle("カテゴリの操作: ${cat.categoryName}")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        val layout = android.widget.LinearLayout(requireContext()).apply {
+                            orientation = android.widget.LinearLayout.VERTICAL
+                            setPadding(48, 32, 48, 32)
+                        }
+                        val etName = EditText(requireContext()).apply { setText(cat.categoryName) }
+                        val etVal = EditText(requireContext()).apply { setText(cat.categoryValue) }
+                        layout.addView(etName)
+                        layout.addView(etVal)
+
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("カテゴリ編集")
+                            .setView(layout)
+                            .setPositiveButton("更新") { _, _ ->
+                                val newName = etName.text.toString().trim()
+                                val newVal = etVal.text.toString().trim()
+                                if (newName.isNotBlank() && newVal.isNotBlank()) {
+                                    viewLifecycleOwner.lifecycleScope.launch {
+                                        db.categoryDao().insertCategory(cat.copy(categoryName = newName, categoryValue = newVal))
+                                        Toast.makeText(requireContext(), "更新しました", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                            .setNegativeButton("キャンセル", null)
+                            .show()
+                    }
+                    1 -> {
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("確認")
+                            .setMessage("「${cat.categoryName}」を削除しますか？")
+                            .setPositiveButton("削除") { _, _ ->
+                                viewLifecycleOwner.lifecycleScope.launch {
+                                    db.categoryDao().deleteCategory(cat)
+                                    Toast.makeText(requireContext(), "削除しました", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .setNegativeButton("キャンセル", null)
+                            .show()
+                    }
+                }
+            }
             .show()
     }
 
@@ -128,6 +190,46 @@ class SearchKeyFragment : Fragment() {
             
             val sortIndex = sortValues.indexOf(it.sortOrder)
             if (sortIndex >= 0) dialogBinding.spinnerSort.setSelection(sortIndex)
+        }
+
+        // ★ 対象カテゴリの「選択」ボタン
+        dialogBinding.btnSelectCategory.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val cats = db.categoryDao().getAllCategoriesList()
+                if (cats.isNotEmpty()) {
+                    val catNames = cats.map { "[${it.platform}] ${it.categoryName} (${it.categoryValue})" }.toTypedArray()
+                    AlertDialog.Builder(requireContext())
+                        .setTitle("対象カテゴリを選択")
+                        .setItems(catNames) { _, idx ->
+                            val currentText = dialogBinding.etCategories.text.toString()
+                            val newVal = cats[idx].categoryValue
+                            dialogBinding.etCategories.setText(if (currentText.isBlank()) newVal else "$currentText,$newVal")
+                        }
+                        .show()
+                } else {
+                    Toast.makeText(requireContext(), "保存されたカテゴリがありません。「カテゴリ」タブで先に登録してください", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        // ★ 除外カテゴリの「選択」ボタン
+        dialogBinding.btnSelectExcludeCategory.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val cats = db.categoryDao().getAllCategoriesList()
+                if (cats.isNotEmpty()) {
+                    val catNames = cats.map { "[${it.platform}] ${it.categoryName} (${it.categoryValue})" }.toTypedArray()
+                    AlertDialog.Builder(requireContext())
+                        .setTitle("除外カテゴリを選択")
+                        .setItems(catNames) { _, idx ->
+                            val currentText = dialogBinding.etExcludeCategories.text.toString()
+                            val newVal = cats[idx].categoryValue
+                            dialogBinding.etExcludeCategories.setText(if (currentText.isBlank()) newVal else "$currentText,$newVal")
+                        }
+                        .show()
+                } else {
+                    Toast.makeText(requireContext(), "保存されたカテゴリがありません", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         val title = if (existingCondition == null) "検索パターン追加" else "検索パターン編集"
