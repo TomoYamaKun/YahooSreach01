@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/YahooAuctionParser.kt
-//ver 1.01-186
+//ver 1.01-188
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -20,7 +20,7 @@ object YahooAuctionParser {
             "s4" to "入札件数多い"
         )
 
-        // ★ ブラウザ検索と同じように、除外キーワードを "-キーワード" の形式に整形してクエリに結合する
+        // 除外キーワードを "-キーワード" の形式に整形してクエリに結合
         val baseQuery = condition.searchKeys.trim()
         val excludePart = if (condition.excludeKeys.isNotBlank()) {
             " " + condition.excludeKeys.trim().split("\\s+".toRegex()).joinToString(" ") { if (it.startsWith("-")) it else "-$it" }
@@ -30,15 +30,8 @@ object YahooAuctionParser {
         val fullQuery = baseQuery + excludePart
         val formattedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8").replace("+", "%20")
 
-        // ★ カンマ区切りから「数字のみのカテゴリID（ヤフオク用）」を抽出する
-        val categoryParam = if (condition.categories.isNotBlank()) {
-            val catId = condition.categories.split(",")
-                .map { it.trim() }
-                .firstOrNull { it.matches(Regex("^[0-9]+$")) } ?: ""
-            if (catId.isNotEmpty()) "&auccat=$catId" else ""
-        } else {
-            ""
-        }
+        // ★ ヤフオクの404エラーを防ぐため、不安定な auccat パラメータの付与を廃止し、キーワードと価格範囲で確実に取得する
+        val categoryParam = ""
 
         for ((sortParam, modeName) in sortModes) {
             val pageOffsets = if (sortParam == "s3") listOf(1, 51) else listOf(1, 101)
@@ -48,9 +41,8 @@ object YahooAuctionParser {
                     val pageNum = if (bParam <= 1) 1 else 2
                     LogManager.d("YahooAuctionParser", "「${condition.patternName}」: $modeName ($pageNum ページ目) 取得中...")
 
-                    // ブラウザ公式に合わせた min / max パラメータ
-                    val priceMinParam = if (condition.minPrice > 0) "&min=${condition.minPrice}" else ""
-                    val priceMaxParam = if (condition.maxPrice > 0) "&max=${condition.maxPrice}" else ""
+                    val priceMinParam = if (condition.minPrice > 0) "&aucminprice=${condition.minPrice}" else ""
+                    val priceMaxParam = if (condition.maxPrice > 0) "&aucmaxprice=${condition.maxPrice}" else ""
 
                     val yahooUrl = if (sortParam == "s3") {
                         "https://auctions.yahoo.co.jp/opensearch?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam&fixed=0&b=$bParam&is_postage_mode=1&n=50&select=5&mode=2"
