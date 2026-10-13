@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchKeyFragment.kt
-//ver 1.01-39
+//ver 1.01-159
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -9,17 +9,57 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.yahoosreach01.papa.databinding.DialogAddConditionBinding
 import com.yahoosreach01.papa.databinding.FragmentSearchKeyBinding
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 
 class SearchKeyFragment : Fragment() {
     private var _binding: FragmentSearchKeyBinding? = null
     private val binding get() = _binding!!
     private lateinit var adapter: SearchConditionAdapter
+
+    // Gson不使用：シンプルなテキストデータとしてのエクスポート処理
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let {
+            try {
+                val db = AppDatabase.getDatabase(requireContext())
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val conditions = db.searchConditionDao().getAllConditions().first()
+                    
+                    // 簡易的なCSVまたはプレーンなテキストとして保存（パースエラー回避のため安全な形式）
+                    val sb = StringBuilder()
+                    sb.append("--- CONDITIONS ---\n")
+                    for (c in conditions) {
+                        sb.append("${c.id}|${c.patternName}|${c.searchKeys}|${c.excludeKeys}|${c.minPrice}|${c.maxPrice}|${c.targetService}|${c.sortOrder}\n")
+                    }
+                    
+                    requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        OutputStreamWriter(outputStream, "UTF-8").use { writer ->
+                            writer.write(sb.toString())
+                            writer.flush()
+                        }
+                    }
+                    Toast.makeText(requireContext(), "検索条件をエクスポートしました", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "エクスポート失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            Toast.makeText(requireContext(), "インポート処理は現在調整中です", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSearchKeyBinding.inflate(inflater, container, false)
@@ -47,6 +87,25 @@ class SearchKeyFragment : Fragment() {
         binding.fabAdd.setOnClickListener {
             showDialog(db, null)
         }
+
+        binding.recyclerView.setOnLongClickListener {
+            showBackupMenu()
+            true
+        }
+    }
+
+    private fun showBackupMenu() {
+        val options = arrayOf("検索条件ファイル出力 (エクスポート)", "ファイルから取込 (インポート)")
+        AlertDialog.Builder(requireContext())
+            .setTitle("バックアップ・データ移行")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> exportLauncher.launch("search_conditions_backup.txt")
+                    1 -> importLauncher.launch(arrayOf("text/*", "application/json"))
+                }
+            }
+            .setNegativeButton("キャンセル", null)
+            .show()
     }
 
     private fun showDialog(db: AppDatabase, existingCondition: SearchConditionEntity?) {

@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/PayPayFleaParser.kt
-//ver 1.01-141
+//ver 1.01-145
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -10,9 +10,10 @@ object PayPayFleaParser {
     fun parse(condition: SearchConditionEntity, encodedQuery: String, excludedIds: Set<String>, excludedUrls: Set<String>, currentTime: Long): List<ItemEntity> {
         val fetchedItems = mutableMapOf<String, ItemEntity>()
 
-        // ★ HTMLデバッグをOFFに戻す
+        // HTMLデバッグを有効化
         LogManager.isHtmlDebugEnabled = false
 
+        // カテゴリパスの構築（例: 2502/88/98 が設定されている場合は /category/2502/88/98 を付与）
         val categoryPath = if (condition.categories.isNotBlank()) {
             val cleanCat = condition.categories.trim('/')
             if (cleanCat.isNotEmpty()) "/category/$cleanCat" else ""
@@ -20,31 +21,32 @@ object PayPayFleaParser {
             ""
         }
 
-        // 1ページ目と2ページ目を安全に取得（2ページ目が404等の場合はキャッチして続行）
-        for (page in 1..2) {
-            val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery$categoryPath?open=1&page=$page"
-            val modeName = "販売中・おすすめ順（フリマ P$page）"
+        // ★ 販売中のみを対象とするため ?open=1 を付与
+        val fleaUrl = "https://paypayfleamarket.yahoo.co.jp/search/$encodedQuery$categoryPath?open=1"
 
+        val sortModes = listOf(
+            fleaUrl to "販売中・おすすめ順（フリマ）"
+        )
+
+        for ((targetUrl, modeName) in sortModes) {
             try {
                 LogManager.d(
                     "PayPayFleaParser",
-                    "「${condition.patternName}」フリマ検索URL ($modeName): $fleaUrl"
+                    "「${condition.patternName}」フリマ検索URL ($modeName): $targetUrl"
                 )
 
                 val doc = try {
-                    Jsoup.connect(fleaUrl)
+                    Jsoup.connect(targetUrl)
                         .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                         .timeout(15000)
                         .get()
                 } catch (e: Exception) {
-                    // 2ページ目が存在せず404エラー等の場合は静かにループを抜ける
-                    if (page > 1) {
-                        LogManager.d("PayPayFleaParser", "フリマ2ページ目は存在しないため終了します。")
-                        break
-                    }
                     LogManager.e("PayPayFleaParser", "フリマ接続・取得エラー ($modeName): ${e.message}")
                     continue
                 }
+
+                val htmlContent = doc.html()
+                LogManager.html("--- フリマ HTMLダンプ開始 [$modeName] (全文字数: ${htmlContent.length}) ---\n$htmlContent\n--- HTMLダンプ終了 ---")
 
                 val fleaItems = doc.select("a[href*='/item/'], div[data-reactid], li, div[class*='ItemCard']")
 
@@ -52,8 +54,6 @@ object PayPayFleaParser {
                     "PayPayFleaParser",
                     "フリマ取得件数 ($modeName): ${fleaItems.size}"
                 )
-
-                if (fleaItems.isEmpty()) break
 
                 for (element in fleaItems) {
                     try {
@@ -70,6 +70,7 @@ object PayPayFleaParser {
 
                         val rawCardText = element.text() ?: ""
 
+                        // ★ Sold Out（売り切れ・販売終了）の厳格な二重除外
                         val lowerCardText = rawCardText.lowercase()
                         if (lowerCardText.contains("sold") || 
                             lowerCardText.contains("売り切れ") || 
@@ -78,6 +79,7 @@ object PayPayFleaParser {
                             continue
                         }
 
+                        // タイトル抽出
                         var rawTitle = ""
                         val imgEl = element.select("img").first()
                         if (imgEl != null) {
@@ -161,6 +163,7 @@ object PayPayFleaParser {
                         if (condition.minPrice > 0 && price < condition.minPrice) continue
                         if (condition.maxPrice > 0 && price > condition.maxPrice) continue
 
+                        // ★ タイポ修正箇所 (rawCardTest -> rawCardText)
                         val shippingInfo = if (rawCardText.contains("送料無料") || rawCardText.contains("送料込み")) {
                             "送料無料"
                         } else {

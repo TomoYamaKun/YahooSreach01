@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchWorker.kt
-//ver 1.01-97
+//ver 1.01-146
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -18,8 +18,8 @@ object SearchWorker {
 
             db.itemDao().clearActiveItemsForCondition(conditionId)
 
-            // Exclude list madhil items fetch karne
-            val excludedItems = db.itemDao().getExcludedItemsList()
+            // 検索条件ごとに独立した除外リストを取得
+            val excludedItems = db.itemDao().getExcludedItemsListForCondition(conditionId)
             val excludedIds = excludedItems.map { it.itemId }.toSet()
             val excludedUrls = excludedItems.map { it.url }.toSet()
 

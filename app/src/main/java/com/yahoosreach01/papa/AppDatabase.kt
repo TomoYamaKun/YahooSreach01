@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDatabase.kt
-//ver 1.01-39
+//ver 1.01-157
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -8,13 +8,19 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ItemEntity::class, SearchConditionEntity::class],
-    version = 6, // バージョンを6に上げてカテゴリ追加を反映
+    entities = [
+        SearchConditionEntity::class,
+        ItemEntity::class,
+        CategoryEntity::class
+    ],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun itemDao(): ItemDao
+
     abstract fun searchConditionDao(): SearchConditionDao
+    abstract fun itemDao(): ItemDao
+    abstract fun categoryDao(): CategoryDao
 
     companion object {
         @Volatile
@@ -25,7 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "ysearch_database"
+                    "yahoo_sreach_database"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

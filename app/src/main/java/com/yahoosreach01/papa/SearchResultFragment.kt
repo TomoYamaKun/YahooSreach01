@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultFragment.kt
-//ver 1.01-84
+//ver 1.01-146
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -26,6 +26,7 @@ class SearchResultFragment : Fragment() {
     private var _binding: FragmentSearchResultBinding? = null
     private val binding get() = _binding!!
     private lateinit var adapter: SearchResultAdapter
+    private var currentSelectedConditionId: Long = -1L
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSearchResultBinding.inflate(inflater, container, false)
@@ -43,15 +44,16 @@ class SearchResultFragment : Fragment() {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
 
-        // データベースの有効な全アイテムをリアルタイムで確実に取得してリストにセットする (要件7)
+        // 初回起動時またはパターン選択時に独立表示するため、登録されている最初のパターンを自動選択するかダイアログを表示
         viewLifecycleOwner.lifecycleScope.launch {
-            db.itemDao().getAllActiveItems().collectLatest { items ->
-                LogManager.d("SearchResultFragment", "UI側で検知したアクティブアイテム数: ${items.size}")
-                adapter.submitList(items)
+            val conditions = db.searchConditionDao().getAllConditions().first()
+            if (conditions.isNotEmpty()) {
+                // デフォルトで最初の条件を選択
+                selectCondition(conditions[0].id.toLong(), conditions[0].patternName)
             }
         }
 
-        // 検索ボタン押下時の処理
+        // 検索ボタン押下時の処理（検索実行 or 表示パターンの切り替え）
         binding.fabSearch.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 val conditions = db.searchConditionDao().getAllConditions().first()
@@ -62,18 +64,44 @@ class SearchResultFragment : Fragment() {
 
                 val patternNames = conditions.map { it.patternName }.toTypedArray()
                 AlertDialog.Builder(requireContext())
-                    .setTitle("検索に使用するパターンを選択")
+                    .setTitle("表示・検索するパターンを選択")
                     .setItems(patternNames) { _, which ->
                         val selectedCondition = conditions[which]
-                        Toast.makeText(requireContext(), "「${selectedCondition.patternName}」で検索中...", Toast.LENGTH_SHORT).show()
                         
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            SearchWorker.executeSearch(requireContext(), selectedCondition)
-                            Toast.makeText(requireContext(), "検索処理が完了しました", Toast.LENGTH_SHORT).show()
-                        }
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("「${selectedCondition.patternName}」の操作")
+                            .setMessage("新規に検索を実行しますか？それとも保存された結果を表示しますか？")
+                            .setPositiveButton("新規検索する") { _, _ ->
+                                Toast.makeText(requireContext(), "「${selectedCondition.patternName}」で検索中...", Toast.LENGTH_SHORT).show()
+                                viewLifecycleOwner.lifecycleScope.launch {
+                                    SearchWorker.executeSearch(requireContext(), selectedCondition)
+                                    selectCondition(selectedCondition.id.toLong(), selectedCondition.patternName)
+                                    Toast.makeText(requireContext(), "検索処理が完了しました", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .setNegativeButton("結果を表示する") { _, _ ->
+                                selectCondition(selectedCondition.id.toLong(), selectedCondition.patternName)
+                            }
+                            .show()
                     }
                     .setNegativeButton("キャンセル", null)
                     .show()
+            }
+        }
+    }
+
+    private fun selectCondition(conditionId: Long, patternName: String) {
+        currentSelectedConditionId = conditionId
+        val db = AppDatabase.getDatabase(requireContext())
+        
+        Toast.makeText(requireContext(), "表示中: $patternName", Toast.LENGTH_SHORT).show()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            db.itemDao().getActiveItemsForCondition(conditionId).collectLatest { items ->
+                if (currentSelectedConditionId == conditionId) {
+                    LogManager.d("SearchResultFragment", "「$patternName」のアクティブアイテム数: ${items.size}")
+                    adapter.submitList(items)
+                }
             }
         }
     }
@@ -123,13 +151,13 @@ class SearchResultFragment : Fragment() {
             .setTitle(item.title)
             .setView(scrollView)
             .setPositiveButton("アプリ内で開く") { _, _ ->
-                // 外部ブラウザではなく、アプリ内の共通WebView（タブ）にURLを読み込ませる
                 openInAppWebView(item.url)
             }
             .setNeutralButton("除外する") { _, _ ->
                 viewLifecycleOwner.lifecycleScope.launch {
+                    // 検索条件ごとに独立して除外
                     AppDatabase.getDatabase(requireContext()).itemDao().excludeItem(item.itemId)
-                    Toast.makeText(requireContext(), "除外リストに追加しました", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "この条件の除外リストに追加しました", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("閉じる", null)
@@ -137,15 +165,10 @@ class SearchResultFragment : Fragment() {
     }
 
     private fun openInAppWebView(url: String) {
-        // MainActivity等を経由して、またはViewPagerのタブ等に存在するYahooLoginFragmentを探してURLをロードする
-        // ここではアクティビティ側の仕組みに合わせて、ViewPagerAdapterのタグやViewPagerの現在位置を利用するか、
-        // あるいはMainActivityに公開したメソッドを呼び出す形に連携します。
-        
         val activity = requireActivity()
         if (activity is MainActivity) {
             activity.loadUrlInTab(url)
         } else {
-            // 万が一Activityが異なる場合のフォールバックとしてYahooLoginFragmentを直接生成または検索
             val fragment = parentFragmentManager.findFragmentByTag("f1") as? YahooLoginFragment 
                 ?: (parentFragmentManager.fragments.find { it is YahooLoginFragment } as? YahooLoginFragment)
 

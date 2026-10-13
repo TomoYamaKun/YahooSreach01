@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/AppDaos.kt
-//ver 1.01-96
+//ver 1.01-155
 package com.yahoosreach01.papa
 
 import androidx.room.*
@@ -7,20 +7,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ItemDao {
-    @Query("SELECT * FROM items WHERE isExcluded = 0 ORDER BY createdAt DESC")
-    fun getAllActiveItems(): Flow<List<ItemEntity>>
+    @Query("SELECT * FROM items WHERE conditionId = :conditionId AND isExcluded = 0 ORDER BY createdAt DESC")
+    fun getActiveItemsForCondition(conditionId: Long): Flow<List<ItemEntity>>
 
-    @Query("SELECT * FROM items WHERE isExcluded = 1 ORDER BY createdAt DESC")
-    fun getAllExcludedItems(): Flow<List<ItemEntity>>
+    @Query("SELECT * FROM items WHERE conditionId = :conditionId AND isExcluded = 1 ORDER BY createdAt DESC")
+    fun getExcludedItemsForCondition(conditionId: Long): Flow<List<ItemEntity>>
 
-    // SearchWorker等から一括で除外リストを取得するためのサスペンド関数を追加
-    @Query("SELECT * FROM items WHERE isExcluded = 1")
-    suspend fun getExcludedItemsList(): List<ItemEntity>
+    @Query("SELECT * FROM items WHERE conditionId = :conditionId AND isExcluded = 1")
+    suspend fun getExcludedItemsListForCondition(conditionId: Long): List<ItemEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: ItemEntity): Long
 
-    // 検索実行時に古い未除外アイテムをクリアして画面をリフレッシュする
     @Query("DELETE FROM items WHERE conditionId = :conditionId AND isExcluded = 0")
     suspend fun clearActiveItemsForCondition(conditionId: Long)
 
