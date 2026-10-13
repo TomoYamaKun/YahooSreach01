@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- app src main res layout item search result xml -->
-<!-- ver 1.01-134 -->
+<!-- ver 1.01-174 -->
 <androidx.constraintlayout.widget.ConstraintLayout 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -50,7 +50,7 @@
         app:layout_constraintTop_toTopOf="parent"
         android:layout_marginStart="8dp" />
 
-    <!-- タイトル -->
+    <!-- タイトル (tv_sourceの右側に配置し、右端で折り返す) -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="0dp"

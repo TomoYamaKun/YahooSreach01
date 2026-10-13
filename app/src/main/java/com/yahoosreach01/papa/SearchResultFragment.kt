@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultFragment.kt
-//ver 1.01-146
+//ver 1.01-173
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.yahoosreach01.papa.databinding.FragmentSearchResultBinding
 import com.yahoosreach01.papa.utils.LogManager
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -27,6 +28,7 @@ class SearchResultFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var adapter: SearchResultAdapter
     private var currentSelectedConditionId: Long = -1L
+    private var collectJob: Job? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSearchResultBinding.inflate(inflater, container, false)
@@ -35,6 +37,7 @@ class SearchResultFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        LogManager.d("SearchResultFragment", "onViewCreated 開始")
 
         val db = AppDatabase.getDatabase(requireContext())
 
@@ -44,16 +47,18 @@ class SearchResultFragment : Fragment() {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
 
-        // 初回起動時またはパターン選択時に独立表示するため、登録されている最初のパターンを自動選択するかダイアログを表示
+        // 初回起動時：登録されている最初のパターンを自動選択して表示
         viewLifecycleOwner.lifecycleScope.launch {
             val conditions = db.searchConditionDao().getAllConditions().first()
+            LogManager.d("SearchResultFragment", "初期ロード 検索パターン数: ${conditions.size}")
             if (conditions.isNotEmpty()) {
-                // デフォルトで最初の条件を選択
                 selectCondition(conditions[0].id.toLong(), conditions[0].patternName)
+            } else {
+                LogManager.d("SearchResultFragment", "検索パターンが登録されていません")
             }
         }
 
-        // 検索ボタン押下時の処理（検索実行 or 表示パターンの切り替え）
+        // 検索ボタン（FAB）押下時の処理：パターン選択 ＆ 新規検索 or 結果表示
         binding.fabSearch.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 val conditions = db.searchConditionDao().getAllConditions().first()
@@ -73,13 +78,16 @@ class SearchResultFragment : Fragment() {
                             .setMessage("新規に検索を実行しますか？それとも保存された結果を表示しますか？")
                             .setPositiveButton("新規検索する") { _, _ ->
                                 Toast.makeText(requireContext(), "「${selectedCondition.patternName}」で検索中...", Toast.LENGTH_SHORT).show()
+                                LogManager.d("SearchResultFragment", "新規検索実行開始: ${selectedCondition.patternName}")
                                 viewLifecycleOwner.lifecycleScope.launch {
                                     SearchWorker.executeSearch(requireContext(), selectedCondition)
                                     selectCondition(selectedCondition.id.toLong(), selectedCondition.patternName)
                                     Toast.makeText(requireContext(), "検索処理が完了しました", Toast.LENGTH_SHORT).show()
+                                    LogManager.d("SearchResultFragment", "新規検索および表示切り替え完了")
                                 }
                             }
                             .setNegativeButton("結果を表示する") { _, _ ->
+                                LogManager.d("SearchResultFragment", "保存結果表示選択: ${selectedCondition.patternName}")
                                 selectCondition(selectedCondition.id.toLong(), selectedCondition.patternName)
                             }
                             .show()
@@ -95,18 +103,25 @@ class SearchResultFragment : Fragment() {
         val db = AppDatabase.getDatabase(requireContext())
         
         Toast.makeText(requireContext(), "表示中: $patternName", Toast.LENGTH_SHORT).show()
+        LogManager.d("SearchResultFragment", "selectCondition 呼び出し: patternName=$patternName, conditionId=$conditionId")
 
-        viewLifecycleOwner.lifecycleScope.launch {
+        collectJob?.cancel()
+
+        collectJob = viewLifecycleOwner.lifecycleScope.launch {
             db.itemDao().getActiveItemsForCondition(conditionId).collectLatest { items ->
                 if (currentSelectedConditionId == conditionId) {
-                    LogManager.d("SearchResultFragment", "「$patternName」のアクティブアイテム数: ${items.size}")
+                    LogManager.d("SearchResultFragment", "「$patternName」のアクティブアイテム数受信: ${items.size}件")
                     adapter.submitList(items)
+                    LogManager.d("SearchResultFragment", "「$patternName」のRecyclerViewへのリスト適用完了")
+                } else {
+                    LogManager.d("SearchResultFragment", "conditionIdが変更されているためアイテム適用をスキップ (current: $currentSelectedConditionId, received for: $conditionId)")
                 }
             }
         }
     }
 
     private fun showItemDetailDialog(item: ItemEntity) {
+        LogManager.d("SearchResultFragment", "アイテム詳細ダイアログ表示: ${item.title}")
         val scrollView = ScrollView(requireContext())
         val layout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
@@ -151,11 +166,12 @@ class SearchResultFragment : Fragment() {
             .setTitle(item.title)
             .setView(scrollView)
             .setPositiveButton("アプリ内で開く") { _, _ ->
+                LogManager.d("SearchResultFragment", "詳細ダイアログ [アプリ内で開く] タップ: ${item.url}")
                 openInAppWebView(item.url)
             }
             .setNeutralButton("除外する") { _, _ ->
+                LogManager.d("SearchResultFragment", "詳細ダイアログ [除外する] タップ: ${item.itemId}")
                 viewLifecycleOwner.lifecycleScope.launch {
-                    // 検索条件ごとに独立して除外
                     AppDatabase.getDatabase(requireContext()).itemDao().excludeItem(item.itemId)
                     Toast.makeText(requireContext(), "この条件の除外リストに追加しました", Toast.LENGTH_SHORT).show()
                 }
@@ -183,6 +199,7 @@ class SearchResultFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        LogManager.d("SearchResultFragment", "onDestroyView")
         _binding = null
     }
 }
