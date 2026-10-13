@@ -1,9 +1,10 @@
 //app/src/main/java/com/yahoosreach01/papa/CategoryBrowserFragment.kt
-//ver 1.01-156
+//ver 1.01-163
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +12,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -51,11 +54,14 @@ class CategoryBrowserFragment : Fragment() {
 
         binding.btnSaveCategory.setOnClickListener {
             val currentUrl = binding.webView.url ?: ""
-            extractAndSaveCategory(currentUrl)
+            binding.webView.evaluateJavascript("document.title") { titleResult ->
+                val pageTitle = titleResult?.trim('"')?.replace("\\u0026", "&") ?: ""
+                extractAndShowRegisterDialog(currentUrl, pageTitle)
+            }
         }
     }
 
-    private fun extractAndSaveCategory(url: String) {
+    private fun extractAndShowRegisterDialog(url: String, pageTitle: String) {
         var platform = "auction"
         var extractedValue = ""
 
@@ -76,25 +82,57 @@ class CategoryBrowserFragment : Fragment() {
             }
         }
 
-        val layout = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 32)
+        var suggestedName = pageTitle
+            .replace(" - ヤフオク!", "")
+            .replace(" - PayPayフリマ", "")
+            .replace("のオークション", "")
+            .trim()
+        if (suggestedName.isBlank()) suggestedName = "新規カテゴリ"
+
+        val scrollView = ScrollView(requireContext()).apply {
+            setPadding(32, 24, 32, 24)
         }
 
+        val layout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val tvUrlInfo = TextView(requireContext()).apply {
+            text = "【取得URL】\n$url"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(0xFF666666.toInt())
+            setPadding(0, 0, 0, 16)
+        }
+
+        val tvNameLabel = TextView(requireContext()).apply { text = "カテゴリ名（スクレイピング結果・修正可能）:" }
         val etName = EditText(requireContext()).apply {
-            hint = "カテゴリ名（例: DDR4メモリ）"
+            setText(suggestedName)
+            setSelection(text.length)
+        }
+
+        val tvValLabel = TextView(requireContext()).apply { 
+            text = "カテゴリID / パス（自動抽出）:"
+            setPadding(0, 16, 0, 0)
         }
         val etValue = EditText(requireContext()).apply {
-            hint = "カテゴリID / パス"
             setText(extractedValue)
         }
 
+        layout.addView(tvUrlInfo)
+        layout.addView(tvNameLabel)
         layout.addView(etName)
+        layout.addView(tvValLabel)
         layout.addView(etValue)
+
+        scrollView.addView(layout)
 
         AlertDialog.Builder(requireContext())
             .setTitle("カテゴリメモに登録")
-            .setView(layout)
+            .setView(scrollView)
             .setPositiveButton("登録") { _, _ ->
                 val name = etName.text.toString().trim()
                 val value = etValue.text.toString().trim()

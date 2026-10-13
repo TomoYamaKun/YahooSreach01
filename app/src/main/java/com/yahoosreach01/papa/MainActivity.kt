@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/MainActivity.kt
-//ver 1.01-87
+//ver 1.01-161
 package com.yahoosreach01.papa
 
 import android.os.Bundle
@@ -38,20 +38,20 @@ class MainActivity : AppCompatActivity() {
         
         binding.viewPager.isUserInputEnabled = false
 
-        // 「ログイン」タブを追加し、計5つのタブ構成に変更
-        val tabTitles = listOf("検索結果", "ログ", "検索キー", "除外商品", "ログイン")
+        // 「カテゴリ」タブを追加し、計6つのタブ構成に変更
+        val tabTitles = listOf("検索結果", "ログ", "検索キー", "除外商品", "カテゴリ", "ログイン")
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = tabTitles[position]
         }.attach()
     }
 
     /**
-     * 検索結果などから呼び出され、アプリ内の共通WebViewタブ（ログインタブ / インデックス: 4）に
+     * 検索結果などから呼び出され、アプリ内の共通WebViewタブ（ログインタブ / インデックス: 5）に
      * 任意のURL（ヤフオク・フリマの商品詳細など）を読み込ませてそのタブに切り替えるメソッド
      */
     fun loadUrlInTab(url: String) {
-        // ログインタブ（インデックス4）に切り替え
-        binding.viewPager.currentItem = 4
+        // ログインタブ（インデックス5）に切り替え
+        binding.viewPager.currentItem = 5
 
         // 少し遅延させてフラグメントがアタッチされた後にURLをロード
         binding.viewPager.postDelayed({
