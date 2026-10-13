@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/PayPayFleaParser.kt
-//ver 1.01-167
+//ver 1.01-169
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -12,12 +12,15 @@ object PayPayFleaParser {
 
         LogManager.isHtmlDebugEnabled = false
 
-        // ★ フリマ用カテゴリパスの構築（数値のみのIDはヤフオク用なのでフリマでは無視する）
+        // ★ カンマ区切りから「スラッシュを含むパス（フリマ用カテゴリパス）」を抽出する
         val categoryPath = if (condition.categories.isNotBlank()) {
-            val cleanCat = condition.categories.trim('/')
-            // 数値のみ（例: "23372"）の場合はフリマURL構造に合わないため除外
-            if (cleanCat.isNotEmpty() && !cleanCat.matches(Regex("^[0-9,]+$"))) {
-                "/category/$cleanCat"
+            val fleaPath = condition.categories.split(",")
+                .map { it.trim() }
+                .firstOrNull { it.contains("/") } ?: ""
+            
+            if (fleaPath.isNotBlank()) {
+                val cleanCat = fleaPath.trim('/')
+                if (cleanCat.isNotEmpty()) "/category/$cleanCat" else ""
             } else {
                 ""
             }
@@ -48,7 +51,6 @@ object PayPayFleaParser {
                     continue
                 }
 
-                val htmlContent = doc.html()
                 val fleaItems = doc.select("a[href*='/item/'], div[data-reactid], li, div[class*='ItemCard']")
 
                 LogManager.d(

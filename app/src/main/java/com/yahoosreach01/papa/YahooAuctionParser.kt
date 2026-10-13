@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/YahooAuctionParser.kt
-//ver 1.01-132
+//ver 1.01-169
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -11,9 +11,8 @@ import java.util.Locale
 object YahooAuctionParser {
 
     fun parse(condition: SearchConditionEntity, encodedQuery: String, excludedIds: Set<String>, excludedUrls: Set<String>, currentTime: Long): List<ItemEntity> {
-        val fetchedItems = mutableMapOf<String, ItemEntity>() // ID重複を防ぐためのマップ
+        val fetchedItems = mutableMapOf<String, ItemEntity>()
 
-        // おすすめ、最安値順、終了時間間近、入札件数多いの4つのソートモード
         val sortModes = listOf(
             "" to "おすすめ順",
             "s2" to "最安値順",
@@ -21,8 +20,17 @@ object YahooAuctionParser {
             "s4" to "入札件数多い"
         )
 
+        // ★ カンマ区切りから「数字のみのカテゴリID（ヤフオク用）」を抽出する
+        val categoryParam = if (condition.categories.isNotBlank()) {
+            val catId = condition.categories.split(",")
+                .map { it.trim() }
+                .firstOrNull { it.matches(Regex("^[0-9]+$")) } ?: ""
+            if (catId.isNotEmpty()) "&auccat=$catId" else ""
+        } else {
+            ""
+        }
+
         for ((sortParam, modeName) in sortModes) {
-            // ★ 1ページ目と2ページ目のみを取得するループ (page 1 = b=1, page 2 = b=51 または b=101)
             val pageOffsets = if (sortParam == "s3") listOf(1, 51) else listOf(1, 101)
 
             for (bParam in pageOffsets) {
@@ -32,13 +40,6 @@ object YahooAuctionParser {
 
                     val priceMinParam = if (condition.minPrice > 0) "&aucminprice=${condition.minPrice}" else ""
                     val priceMaxParam = if (condition.maxPrice > 0) "&aucmaxprice=${condition.maxPrice}" else ""
-                    
-                    val categoryParam = if (condition.categories.isNotBlank()) {
-                        val catId = condition.categories.split(",").firstOrNull()?.trim() ?: ""
-                        if (catId.isNotEmpty()) "&auccat=$catId" else ""
-                    } else {
-                        ""
-                    }
 
                     val yahooUrl = if (sortParam == "s3") {
                         "https://auctions.yahoo.co.jp/opensearch?p=$encodedQuery$priceMinParam$priceMaxParam$categoryParam&fixed=0&b=$bParam&is_postage_mode=1&n=50&select=5&mode=2"
@@ -58,9 +59,6 @@ object YahooAuctionParser {
                             .timeout(15000)
                             .get()
 
-                    val htmlContent = doc.html()
-                    LogManager.html("--- ヤフオク HTMLダンプ開始 [$modeName P$pageNum] (全文字数: ${htmlContent.length}) ---\n$htmlContent\n--- HTMLダンプ終了 ---")
-
                     val items =
                         doc.select(".Product, li.Product, div.Product, li[class*='Product'], div[class*='Product'], li.clst, div.clst, li[class*='clst']")
 
@@ -69,7 +67,6 @@ object YahooAuctionParser {
                         "ヤフオク取得件数 ($modeName P$pageNum): ${items.size}"
                     )
 
-                    // 2ページ目でアイテムが一件も取得できなかった場合はループを抜けて次のソートへ
                     if (items.isEmpty() && pageNum > 1) break
 
                     for (element in items) {
