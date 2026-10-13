@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/YahooAuctionParser.kt
-//ver 1.01-191
+//ver 1.01-192
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -13,6 +13,7 @@ object YahooAuctionParser {
     fun parse(condition: SearchConditionEntity, encodedQuery: String, excludedIds: Set<String>, excludedUrls: Set<String>, currentTime: Long): List<ItemEntity> {
         val fetchedItems = mutableMapOf<String, ItemEntity>()
 
+        // 404を防ぐため、ブラウザ公式と同じ opensearch ベースの各モードに対応
         val sortModes = listOf(
             "" to "おすすめ順",
             "s2" to "最安値順",
@@ -30,7 +31,7 @@ object YahooAuctionParser {
         val fullQuery = baseQuery + excludePart
         val formattedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8").replace("+", "%20")
 
-        // ヤフオク用の正しいカテゴリパラメータ（auccat）
+        // カテゴリパラメータ (auccat)
         val categoryParam = if (condition.categories.isNotBlank()) {
             val catId = condition.categories.split(",")
                 .map { it.trim() }
@@ -48,16 +49,13 @@ object YahooAuctionParser {
                     val pageNum = if (bParam <= 1) 1 else 2
                     LogManager.d("YahooAuctionParser", "「${condition.patternName}」: $modeName ($pageNum ページ目) 取得中...")
 
-                    val priceMinParam = if (condition.minPrice > 0) "&aucminprice=${condition.minPrice}" else ""
-                    val priceMaxParam = if (condition.maxPrice > 0) "&aucmaxprice=${condition.maxPrice}" else ""
+                    // ★ ブラウザと完全に一致する正しい価格パラメータ (min / max)
+                    val priceMinParam = if (condition.minPrice > 0) "&min=${condition.minPrice}" else ""
+                    val priceMaxParam = if (condition.maxPrice > 0) "&max=${condition.maxPrice}" else ""
 
-                    // ブラウザの成功URL構造に完全に合わせたopensearchおよびsearchの切り分け
-                    val yahooUrl = if (sortParam == "s3") {
-                        "https://auctions.yahoo.co.jp/opensearch?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam&f=0x4&fixed=0&price_type=currentprice&b=$bParam&n=50&select=5&mode=2&dest_pref_code=27"
-                    } else {
-                        val modeParam = if (sortParam.isNotEmpty()) "&$sortParam=1" else ""
-                        "https://auctions.yahoo.co.jp/search/search?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam$modeParam&f=0x4&price_type=currentprice&exflg=1&b=$bParam&n=100&dest_pref_code=27"
-                    }
+                    // ★ 404エラーを防ぐため、すべてのモードでブラウザ公式の opensearch エンドポイント形式に統一
+                    val modeQueryParam = if (sortParam.isNotEmpty()) "&$sortParam=1" else ""
+                    val yahooUrl = "https://auctions.yahoo.co.jp/opensearch?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam$modeQueryParam&f=0x4&fixed=0&price_type=currentprice&b=$bParam&n=50&select=5&mode=2&dest_pref_code=27"
 
                     LogManager.d(
                         "YahooAuctionParser",
