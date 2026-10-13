@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/YahooAuctionParser.kt
-//ver 1.01-189
+//ver 1.01-191
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -30,7 +30,7 @@ object YahooAuctionParser {
         val fullQuery = baseQuery + excludePart
         val formattedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8").replace("+", "%20")
 
-        // ★ ヤフオク用の正しいカテゴリパラメータ（auccat）を安全に復元
+        // ヤフオク用の正しいカテゴリパラメータ（auccat）
         val categoryParam = if (condition.categories.isNotBlank()) {
             val catId = condition.categories.split(",")
                 .map { it.trim() }
@@ -51,11 +51,12 @@ object YahooAuctionParser {
                     val priceMinParam = if (condition.minPrice > 0) "&aucminprice=${condition.minPrice}" else ""
                     val priceMaxParam = if (condition.maxPrice > 0) "&aucmaxprice=${condition.maxPrice}" else ""
 
+                    // ブラウザの成功URL構造に完全に合わせたopensearchおよびsearchの切り分け
                     val yahooUrl = if (sortParam == "s3") {
-                        "https://auctions.yahoo.co.jp/opensearch?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam&fixed=0&b=$bParam&is_postage_mode=1&n=50&select=5&mode=2"
+                        "https://auctions.yahoo.co.jp/opensearch?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam&f=0x4&fixed=0&price_type=currentprice&b=$bParam&n=50&select=5&mode=2&dest_pref_code=27"
                     } else {
                         val modeParam = if (sortParam.isNotEmpty()) "&$sortParam=1" else ""
-                        "https://auctions.yahoo.co.jp/search/search?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam$modeParam&exflg=1&b=$bParam&n=100"
+                        "https://auctions.yahoo.co.jp/search/search?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam$modeParam&f=0x4&price_type=currentprice&exflg=1&b=$bParam&n=100&dest_pref_code=27"
                     }
 
                     LogManager.d(
