@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultFragment.kt
-//ver 1.01-173
+//ver 1.02-00
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -27,8 +27,12 @@ class SearchResultFragment : Fragment() {
     private var _binding: FragmentSearchResultBinding? = null
     private val binding get() = _binding!!
     private lateinit var adapter: SearchResultAdapter
-    private var currentSelectedConditionId: Long = -1L
     private var collectJob: Job? = null
+
+    companion object {
+        // 画面復帰時のリフレッシュ（強制リセット）を防ぐために状態を保持
+        private var currentSelectedConditionId: Long = -1L
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSearchResultBinding.inflate(inflater, container, false)
@@ -47,18 +51,30 @@ class SearchResultFragment : Fragment() {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
 
-        // 初回起動時：登録されている最初のパターンを自動選択して表示
-        viewLifecycleOwner.lifecycleScope.launch {
-            val conditions = db.searchConditionDao().getAllConditions().first()
-            LogManager.d("SearchResultFragment", "初期ロード 検索パターン数: ${conditions.size}")
-            if (conditions.isNotEmpty()) {
-                selectCondition(conditions[0].id.toLong(), conditions[0].patternName)
-            } else {
-                LogManager.d("SearchResultFragment", "検索パターンが登録されていません")
+        // ★ 既に選択中の状態がある場合は初期ロードによるリセットを行わず維持する
+        if (currentSelectedConditionId == -1L) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val conditions = db.searchConditionDao().getAllConditions().first()
+                LogManager.d("SearchResultFragment", "初期ロード 検索パターン数: ${conditions.size}")
+                if (conditions.isNotEmpty()) {
+                    selectCondition(conditions[0].id.toLong(), conditions[0].patternName)
+                } else {
+                    LogManager.d("SearchResultFragment", "検索パターンが登録されていません")
+                }
+            }
+        } else {
+            LogManager.d("SearchResultFragment", "既存の選択状態を維持します (conditionId: $currentSelectedConditionId)")
+            viewLifecycleOwner.lifecycleScope.launch {
+                val conditions = db.searchConditionDao().getAllConditions().first()
+                val current = conditions.find { it.id.toLong() == currentSelectedConditionId }
+                if (current != null) {
+                    selectCondition(current.id.toLong(), current.patternName)
+                } else if (conditions.isNotEmpty()) {
+                    selectCondition(conditions[0].id.toLong(), conditions[0].patternName)
+                }
             }
         }
 
-        // 検索ボタン（FAB）押下時の処理：パターン選択 ＆ 新規検索 or 結果表示
         binding.fabSearch.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 val conditions = db.searchConditionDao().getAllConditions().first()

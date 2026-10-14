@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchKeyFragment.kt
-//ver 1.01-165
+//ver 1.02-02
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -18,8 +18,6 @@ import com.yahoosreach01.papa.databinding.DialogAddConditionBinding
 import com.yahoosreach01.papa.databinding.FragmentSearchKeyBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 
 class SearchKeyFragment : Fragment() {
@@ -178,21 +176,27 @@ class SearchKeyFragment : Fragment() {
         val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, sortLabels)
         dialogBinding.spinnerSort.adapter = spinnerAdapter
 
-        existingCondition?.let {
-            dialogBinding.etPatternName.setText(it.patternName)
-            dialogBinding.etSearchKeys.setText(it.searchKeys)
-            dialogBinding.etExcludeKeys.setText(it.excludeKeys)
-            dialogBinding.etMinPrice.setText(if (it.minPrice > 0) it.minPrice.toString() else "")
-            dialogBinding.etMaxPrice.setText(if (it.maxPrice > 0) it.maxPrice.toString() else "")
-            dialogBinding.etCategories.setText(it.categories)
-            dialogBinding.etExcludeCategories.setText(it.excludeCategories)
-            dialogBinding.cbYahoo.isChecked = (it.targetService == "both" || it.targetService == "auction")
+        if (existingCondition != null) {
+            dialogBinding.etPatternName.setText(existingCondition.patternName)
+            dialogBinding.etSearchKeys.setText(existingCondition.searchKeys)
+            dialogBinding.etExcludeKeys.setText(existingCondition.excludeKeys)
+            dialogBinding.etMinPrice.setText(if (existingCondition.minPrice > 0) existingCondition.minPrice.toString() else "")
+            dialogBinding.etMaxPrice.setText(if (existingCondition.maxPrice > 0) existingCondition.maxPrice.toString() else "")
+            dialogBinding.etCategories.setText(existingCondition.categories)
+            dialogBinding.etExcludeCategories.setText(existingCondition.excludeCategories)
             
-            val sortIndex = sortValues.indexOf(it.sortOrder)
+            val isYahoo = (existingCondition.targetService == "both" || existingCondition.targetService == "auction")
+            val isFlea = (existingCondition.targetService == "both" || existingCondition.targetService == "fleamarket")
+            dialogBinding.cbTargetYahoo.isChecked = isYahoo
+            dialogBinding.cbTargetFlea.isChecked = isFlea
+            
+            val sortIndex = sortValues.indexOf(existingCondition.sortOrder)
             if (sortIndex >= 0) dialogBinding.spinnerSort.setSelection(sortIndex)
+        } else {
+            dialogBinding.cbTargetYahoo.isChecked = true
+            dialogBinding.cbTargetFlea.isChecked = false
         }
 
-        // ★ 対象カテゴリの「選択」ボタン
         dialogBinding.btnSelectCategory.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 val cats = db.categoryDao().getAllCategoriesList()
@@ -207,12 +211,11 @@ class SearchKeyFragment : Fragment() {
                         }
                         .show()
                 } else {
-                    Toast.makeText(requireContext(), "保存されたカテゴリがありません。「カテゴリ」タブで先に登録してください", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "保存されたカテゴリがありません", Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
-        // ★ 除外カテゴリの「選択」ボタン
         dialogBinding.btnSelectExcludeCategory.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 val cats = db.categoryDao().getAllCategoriesList()
@@ -244,13 +247,26 @@ class SearchKeyFragment : Fragment() {
                     return@setPositiveButton
                 }
                 
+                val yahooChecked = dialogBinding.cbTargetYahoo.isChecked
+                val fleaChecked = dialogBinding.cbTargetFlea.isChecked
+                
+                if (!yahooChecked && !fleaChecked) {
+                    Toast.makeText(requireContext(), "ヤフオクまたはフリマのどちらかを選択してください", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+
+                val target = when {
+                    yahooChecked && fleaChecked -> "both"
+                    yahooChecked -> "auction"
+                    else -> "fleamarket"
+                }
+
                 val searchKeys = dialogBinding.etSearchKeys.text.toString()
                 val excludeKeys = dialogBinding.etExcludeKeys.text.toString()
                 val minPrice = dialogBinding.etMinPrice.text.toString().toIntOrNull() ?: 0
                 val maxPrice = dialogBinding.etMaxPrice.text.toString().toIntOrNull() ?: 0
                 val categories = dialogBinding.etCategories.text.toString()
                 val excludeCategories = dialogBinding.etExcludeCategories.text.toString()
-                val target = if (dialogBinding.cbYahoo.isChecked) "both" else "fleamarket"
                 val selectedSort = sortValues[dialogBinding.spinnerSort.selectedItemPosition]
                 
                 val entity = SearchConditionEntity(

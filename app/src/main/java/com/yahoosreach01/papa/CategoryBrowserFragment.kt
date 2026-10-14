@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/CategoryBrowserFragment.kt
-//ver 1.01-163
+//ver 1.02-00
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -44,6 +44,15 @@ class CategoryBrowserFragment : Fragment() {
         }
 
         binding.webView.loadUrl("https://auctions.yahoo.co.jp/")
+
+        // ★ 追加された「戻る」ボタンの処理
+        binding.btnBack.setOnClickListener {
+            if (binding.webView.canGoBack()) {
+                binding.webView.goBack()
+            } else {
+                Toast.makeText(requireContext(), "これ以上戻れません", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         binding.btnSwitchYahoo.setOnClickListener {
             binding.webView.loadUrl("https://auctions.yahoo.co.jp/")

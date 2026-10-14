@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/YahooAuctionParser.kt
-//ver 1.01-194
+//ver 1.01-202
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -13,11 +13,12 @@ object YahooAuctionParser {
     fun parse(condition: SearchConditionEntity, encodedQuery: String, excludedIds: Set<String>, excludedUrls: Set<String>, currentTime: Long): List<ItemEntity> {
         val fetchedItems = mutableMapOf<String, ItemEntity>()
 
+        // ★ 安定実績のある /search/search エンドポイントベースの4大ソートモード定義
         val sortModes = listOf(
             "" to "おすすめ順",
-            "s2" to "最安値順",
-            "s3" to "終了時間間近",
-            "s4" to "入札件数多い"
+            "s2" to "安い順",
+            "s3" to "残り時間少ない",
+            "select=22" to "新着"
         )
 
         // 除外キーワードを "-キーワード" の形式に整形してクエリに結合
@@ -41,19 +42,21 @@ object YahooAuctionParser {
         }
 
         for ((sortParam, modeName) in sortModes) {
-            val pageOffsets = if (sortParam == "s3") listOf(1, 51) else listOf(1, 101)
+            val pageOffsets = if (sortParam == "s3" || sortParam.contains("select")) listOf(1, 51) else listOf(1, 101)
 
             for (bParam in pageOffsets) {
                 try {
                     val pageNum = if (bParam <= 1) 1 else 2
                     LogManager.d("YahooAuctionParser", "「${condition.patternName}」: $modeName ($pageNum ページ目) 取得中...")
 
-                    // ヤフオクの正しい公式価格パラメータ名 aucminprice / aucmaxprice
+                    // 159件や1073件の大量ヒット実績がある正しい公式価格パラメータ名 aucminprice / aucmaxprice
                     val priceMinParam = if (condition.minPrice > 0) "&aucminprice=${condition.minPrice}" else ""
                     val priceMaxParam = if (condition.maxPrice > 0) "&aucmaxprice=${condition.maxPrice}" else ""
 
-                    // 404を完全に回避しつつ確実にカテゴリと価格を適用する安定の search/search 構造
-                    val yahooUrl = if (sortParam == "s3") {
+                    // ★ 確実に大量ヒットする安定の /search/search 構造
+                    val yahooUrl = if (sortParam.contains("select")) {
+                        "https://auctions.yahoo.co.jp/search/search?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam&$sortParam&exflg=1&b=$bParam&n=100"
+                    } else if (sortParam == "s3") {
                         "https://auctions.yahoo.co.jp/search/search?p=$formattedQuery$priceMinParam$priceMaxParam$categoryParam&s3=1&exflg=1&b=$bParam&n=100"
                     } else {
                         val modeParam = if (sortParam.isNotEmpty()) "&$sortParam=1" else ""

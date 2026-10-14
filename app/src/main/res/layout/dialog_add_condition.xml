@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--//app/src/main/res/layout/dialog_add_condition.xml-->
-<!--ver 1.01-166-->
+<!--//ver 1.02-00-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -125,13 +125,29 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp" />
 
-        <CheckBox
-            android:id="@+id/cb_yahoo"
+        <!-- ヤフオク・フリマの個別チェックボックス（保存時1つ以上必須） -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="ヤフオクも含める (OFFでフリマのみ)"
-            android:checked="true"
-            android:layout_marginTop="12dp" />
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <CheckBox
+                android:id="@+id/cb_target_yahoo"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="ヤフオクを検索"
+                android:checked="true" />
+
+            <CheckBox
+                android:id="@+id/cb_target_flea"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="フリマを検索"
+                android:checked="false" />
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>

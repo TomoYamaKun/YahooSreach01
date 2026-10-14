@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--//app/src/main/res/layout/fragment_yahoo_login.xml-->
+<!--//ver 1.02-00-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/layout_top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="#EEEEEE"
+        android:gravity="center_vertical">
+
+        <Button
+            android:id="@+id/btn_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="← 戻る" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text=" ログイン・ブラウザ (ダブルタップでトップ)"
+            android:textSize="12sp"
+            android:textColor="#555555"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <WebView
+        android:id="@+id/web_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

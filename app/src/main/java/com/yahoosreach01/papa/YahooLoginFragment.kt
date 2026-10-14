@@ -1,23 +1,27 @@
 //app/src/main/java/com/yahoosreach01/papa/YahooLoginFragment.kt
-//ver 1.01-95
+//ver 1.02-00
 package com.yahoosreach01.papa
 
 import android.os.Bundle
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import com.yahoosreach01.papa.databinding.FragmentYahooLoginBinding
 import com.yahoosreach01.papa.utils.LogManager
 
 class YahooLoginFragment : Fragment() {
 
-    private var webView: WebView? = null
+    private var _binding: FragmentYahooLoginBinding? = null
+    private val binding get() = _binding!!
 
     companion object {
-        // 共有の保留用URL（フラグメント生成前や非アクティブ時でも確実にURLを渡せるようにする）
         private var targetUrlToLoad: String? = null
 
         fun requestLoadUrl(url: String) {
@@ -30,55 +34,78 @@ class YahooLoginFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        if (webView == null) {
-            webView = WebView(requireContext()).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.setSupportZoom(true)
-                settings.builtInZoomControls = true
-                settings.displayZoomControls = false
-                
-                webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                        url?.let { view?.loadUrl(it) }
-                        return true
-                    }
+        _binding = FragmentYahooLoginBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        super.onPageFinished(view, url)
-                        if (url != null) {
-                            LogManager.d("YahooLoginFragment", "現在のURL: $url")
-                            if (url.contains("yahoo.co.jp") && !url.contains("login")) {
-                                val cookieManager = CookieManager.getInstance()
-                                val cookies = cookieManager.getCookie(url)
-                                LogManager.d("YahooLoginFragment", "取得したCookie: $cookies")
-                            }
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.webView.apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.setSupportZoom(true)
+            settings.builtInZoomControls = true
+            settings.displayZoomControls = false
+            
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    url?.let { view?.loadUrl(it) }
+                    return true
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    if (url != null) {
+                        LogManager.d("YahooLoginFragment", "現在のURL: $url")
+                        if (url.contains("yahoo.co.jp") && !url.contains("login")) {
+                            val cookieManager = CookieManager.getInstance()
+                            val cookies = cookieManager.getCookie(url)
+                            LogManager.d("YahooLoginFragment", "取得したCookie: $cookies")
                         }
                     }
                 }
-                
-                // 外部から指定されたURLがあればそれを優先し、なければ初期起動時としてログインページを表示
-                val initialUrl = targetUrlToLoad ?: "https://login.yahoo.co.jp/config/login?.src=auc"
-                targetUrlToLoad = null
-                loadUrl(initialUrl)
             }
-        } else {
-            // すでにWebViewがある状態で保留URLがあればロード
-            targetUrlToLoad?.let {
-                targetUrlToLoad = null
-                webView?.loadUrl(it)
+            
+            val initialUrl = targetUrlToLoad ?: "https://login.yahoo.co.jp/config/login?.src=auc"
+            targetUrlToLoad = null
+            loadUrl(initialUrl)
+        }
+
+        // 戻るボタン
+        binding.btnBack.setOnClickListener {
+            if (binding.webView.canGoBack()) {
+                binding.webView.goBack()
+            } else {
+                Toast.makeText(requireContext(), "これ以上戻れません", Toast.LENGTH_SHORT).show()
             }
         }
-        return webView!!
+
+        // 上部バーのダブルタップでYahooトップ画面に戻る
+        val gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                binding.webView.loadUrl("https://www.yahoo.co.jp")
+                Toast.makeText(requireContext(), "Yahooトップに戻りました", Toast.LENGTH_SHORT).show()
+                return true
+            }
+        })
+        binding.layoutTopBar.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            true
+        }
     }
 
-    // 外部（検索結果リスト等）から商品がタップされたときに、このタブ内でURLを開くためのメソッド
     fun loadItemUrl(url: String) {
-        val currentWebView = webView
-        if (currentWebView != null) {
-            currentWebView.loadUrl(url)
+        val wv = _binding?.webView
+        if (wv != null) {
+            wv.loadUrl(url)
         } else {
             targetUrlToLoad = url
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

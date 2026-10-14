@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 検索結果などから呼び出され、アプリ内の共通WebViewタブ（ログインタブ / インデックス: 5）に
+     * 検索結果などから呼び出され)、アプリ内の共通WebViewタブ（ログインタブ / インデックス: 5）に
      * 任意のURL（ヤフオク・フリマの商品詳細など）を読み込ませてそのタブに切り替えるメソッド
      */
     fun loadUrlInTab(url: String) {
