@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchKeyFragment.kt
-//ver 1.02-02
+//ver 1.02-03
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -18,6 +18,10 @@ import com.yahoosreach01.papa.databinding.DialogAddConditionBinding
 import com.yahoosreach01.papa.databinding.FragmentSearchKeyBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 
 class SearchKeyFragment : Fragment() {
@@ -30,22 +34,158 @@ class SearchKeyFragment : Fragment() {
             try {
                 val db = AppDatabase.getDatabase(requireContext())
                 viewLifecycleOwner.lifecycleScope.launch {
-                    val conditions = db.searchConditionDao().getAllConditions().first()
-                    val sb = StringBuilder()
-                    sb.append("--- CONDITIONS ---\n")
-                    for (c in conditions) {
-                        sb.append("${c.id}|${c.patternName}|${c.searchKeys}|${c.excludeKeys}|${c.minPrice}|${c.maxPrice}|${c.targetService}|${c.sortOrder}\n")
+                    val conditions = db.searchConditionDao().getAllConditionsList()
+                    val categories = db.categoryDao().getAllCategoriesList()
+                    val items = db.itemDao().getAllItemsList()
+
+                    val root = JSONObject().apply {
+                        put("version", Constants.APP_VERSION)
+                        put("timestamp", System.currentTimeMillis())
+
+                        val condArray = JSONArray()
+                        for (c in conditions) {
+                            condArray.put(JSONObject().apply {
+                                put("id", c.id)
+                                put("patternName", c.patternName)
+                                put("searchKeys", c.searchKeys)
+                                put("excludeKeys", c.excludeKeys)
+                                put("minPrice", c.minPrice)
+                                put("maxPrice", c.maxPrice)
+                                put("categories", c.categories)
+                                put("excludeCategories", c.excludeCategories)
+                                put("targetService", c.targetService)
+                                put("sortOrder", c.sortOrder)
+                            })
+                        }
+                        put("conditions", condArray)
+
+                        val catArray = JSONArray()
+                        for (cat in categories) {
+                            catArray.put(JSONObject().apply {
+                                put("platform", cat.platform)
+                                put("categoryName", cat.categoryName)
+                                put("categoryValue", cat.categoryValue)
+                            })
+                        }
+                        put("categories", catArray)
+
+                        val itemArray = JSONArray()
+                        for (it in items) {
+                            itemArray.put(JSONObject().apply {
+                                put("itemId", it.itemId)
+                                put("conditionId", it.conditionId)
+                                put("title", it.title)
+                                put("url", it.url)
+                                put("imageUrl", it.imageUrl)
+                                put("currentPrice", it.currentPrice)
+                                put("promptDecisionPrice", it.promptDecisionPrice)
+                                put("bidCount", it.bidCount)
+                                put("shippingInfo", it.shippingInfo)
+                                put("source", it.source)
+                                put("description", it.description)
+                                put("isNew", it.isNew)
+                                put("isExcluded", it.isExcluded)
+                                put("isFavorite", it.isFavorite)
+                                put("endTime", it.endTime)
+                                put("createdAt", it.createdAt)
+                            })
+                        }
+                        put("items", itemArray)
                     }
+
                     requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
                         OutputStreamWriter(outputStream, "UTF-8").use { writer ->
-                            writer.write(sb.toString())
+                            writer.write(root.toString(2))
                             writer.flush()
                         }
                     }
-                    Toast.makeText(requireContext(), "検索条件をエクスポートしました", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "全データのバックアップに成功しました", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(requireContext(), "エクスポート失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            try {
+                val inputStream = requireContext().contentResolver.openInputStream(uri)
+                val jsonString = BufferedReader(InputStreamReader(inputStream, "UTF-8")).use { it.readText() }
+                
+                val root = JSONObject(jsonString)
+                val db = AppDatabase.getDatabase(requireContext())
+
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val condArray = root.optJSONArray("conditions") ?: JSONArray()
+                    val newConds = mutableListOf<SearchConditionEntity>()
+                    for (i in 0 until condArray.length()) {
+                        val obj = condArray.getJSONObject(i)
+                        newConds.add(
+                            SearchConditionEntity(
+                                id = obj.optInt("id", 0),
+                                patternName = obj.optString("patternName"),
+                                searchKeys = obj.optString("searchKeys"),
+                                excludeKeys = obj.optString("excludeKeys"),
+                                minPrice = obj.optInt("minPrice"),
+                                maxPrice = obj.optInt("maxPrice"),
+                                categories = obj.optString("categories"),
+                                excludeCategories = obj.optString("excludeCategories"),
+                                targetService = obj.optString("targetService", "both"),
+                                sortOrder = obj.optString("sortOrder", "a")
+                            )
+                        )
+                    }
+                    db.searchConditionDao().deleteAllConditions()
+                    db.searchConditionDao().insertAllConditions(newConds)
+
+                    val catArray = root.optJSONArray("categories") ?: JSONArray()
+                    val newCats = mutableListOf<CategoryEntity>()
+                    for (i in 0 until catArray.length()) {
+                        val obj = catArray.getJSONObject(i)
+                        newCats.add(
+                            CategoryEntity(
+                                platform = obj.optString("platform"),
+                                categoryName = obj.optString("categoryName"),
+                                categoryValue = obj.optString("categoryValue")
+                            )
+                        )
+                    }
+                    db.categoryDao().deleteAllCategories()
+                    db.categoryDao().insertAllCategories(newCats)
+
+                    val itemArray = root.optJSONArray("items") ?: JSONArray()
+                    val newItems = mutableListOf<ItemEntity>()
+                    for (i in 0 until itemArray.length()) {
+                        val obj = itemArray.getJSONObject(i)
+                        newItems.add(
+                            ItemEntity(
+                                itemId = obj.optString("itemId"),
+                                conditionId = obj.optLong("conditionId"),
+                                title = obj.optString("title"),
+                                url = obj.optString("url"),
+                                imageUrl = obj.optString("imageUrl"),
+                                localImagePath = null,
+                                currentPrice = obj.optInt("currentPrice"),
+                                promptDecisionPrice = obj.optInt("promptDecisionPrice"),
+                                bidCount = obj.optInt("bidCount"),
+                                shippingInfo = obj.optString("shippingInfo"),
+                                source = obj.optString("source"),
+                                description = obj.optString("description"),
+                                isNew = obj.optBoolean("isNew"),
+                                isExcluded = obj.optBoolean("isExcluded"),
+                                isFavorite = obj.optBoolean("isFavorite"),
+                                endTime = obj.optString("endTime"),
+                                createdAt = obj.optLong("createdAt")
+                            )
+                        )
+                    }
+                    db.itemDao().insertAllItems(newItems)
+
+                    Toast.makeText(requireContext(), "バックアップから全データを正常に復元しました！", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "インポート失敗: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -84,13 +224,14 @@ class SearchKeyFragment : Fragment() {
     }
 
     private fun showManagementMenu(db: AppDatabase) {
-        val options = arrayOf("登録カテゴリの管理（一覧・編集・削除）", "検索条件ファイル出力 (エクスポート)")
+        val options = arrayOf("登録カテゴリの管理（一覧・編集・削除）", "全データ バックアップ出力 (エクスポート)", "全データ バックアップ復元 (インポート)")
         AlertDialog.Builder(requireContext())
             .setTitle("データ・カテゴリ管理")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showCategoryManagerDialog(db)
-                    1 -> exportLauncher.launch("search_conditions_backup.txt")
+                    1 -> exportLauncher.launch("yahoo_search_full_backup_${Constants.APP_VERSION}.json")
+                    2 -> importLauncher.launch(arrayOf("application/json", "*/*"))
                 }
             }
             .setNegativeButton("キャンセル", null)

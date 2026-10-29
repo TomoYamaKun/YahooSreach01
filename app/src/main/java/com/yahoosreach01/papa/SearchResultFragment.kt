@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultFragment.kt
-//ver 1.02-00
+//ver 1.02-03
 package com.yahoosreach01.papa
 
 import android.app.AlertDialog
@@ -30,7 +30,6 @@ class SearchResultFragment : Fragment() {
     private var collectJob: Job? = null
 
     companion object {
-        // 画面復帰時のリフレッシュ（強制リセット）を防ぐために状態を保持
         private var currentSelectedConditionId: Long = -1L
     }
 
@@ -51,7 +50,6 @@ class SearchResultFragment : Fragment() {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
 
-        // ★ 既に選択中の状態がある場合は初期ロードによるリセットを行わず維持する
         if (currentSelectedConditionId == -1L) {
             viewLifecycleOwner.lifecycleScope.launch {
                 val conditions = db.searchConditionDao().getAllConditions().first()
@@ -178,21 +176,28 @@ class SearchResultFragment : Fragment() {
 
         scrollView.addView(layout)
 
+        val favButtonText = if (item.isFavorite) "お気に入り解除" else "お気に入り登録"
+
         AlertDialog.Builder(requireContext())
             .setTitle(item.title)
             .setView(scrollView)
             .setPositiveButton("アプリ内で開く") { _, _ ->
-                LogManager.d("SearchResultFragment", "詳細ダイアログ [アプリ内で開く] タップ: ${item.url}")
                 openInAppWebView(item.url)
             }
-            .setNeutralButton("除外する") { _, _ ->
-                LogManager.d("SearchResultFragment", "詳細ダイアログ [除外する] タップ: ${item.itemId}")
+            .setNeutralButton(favButtonText) { _, _ ->
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val newFavState = !item.isFavorite
+                    AppDatabase.getDatabase(requireContext()).itemDao().setFavorite(item.itemId, newFavState)
+                    val msg = if (newFavState) "お気に入りに登録しました" else "お気に入りを解除しました"
+                    Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("除外する") { _, _ ->
                 viewLifecycleOwner.lifecycleScope.launch {
                     AppDatabase.getDatabase(requireContext()).itemDao().excludeItem(item.itemId)
                     Toast.makeText(requireContext(), "この条件の除外リストに追加しました", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("閉じる", null)
             .show()
     }
 

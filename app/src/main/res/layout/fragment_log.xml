@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--//app/src/main/res/layout/fragment_log.xml-->
-<!--ver 1.01-05-->
+<!--ver 1.02-25-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:weightSum="3"
+        android:weightSum="4"
         android:layout_marginBottom="8dp">
 
         <Button
@@ -19,8 +19,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="通常ログコピー"
-            android:textSize="12sp" />
+            android:text="通常コピー"
+            android:textSize="11sp" />
 
         <Button
             android:id="@+id/btn_copy_html"
@@ -28,7 +28,15 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="HTMLコピー"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/btn_export_file"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="ファイル出力"
+            android:textSize="11sp" />
 
         <Button
             android:id="@+id/btn_clear"
@@ -36,7 +44,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="クリア"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 
     <TextView

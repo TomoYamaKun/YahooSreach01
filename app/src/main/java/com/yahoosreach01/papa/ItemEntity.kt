@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/ItemEntity.kt
-//ver 1.01-155
+//ver 1.02-04
 package com.yahoosreach01.papa
 
 import androidx.room.Entity
@@ -15,12 +15,13 @@ data class ItemEntity(
     val localImagePath: String?,
     val currentPrice: Int,
     val promptDecisionPrice: Int,
-    val bidCount: Int, // 入札数
-    val shippingInfo: String?, // 送料情報 (送料無料、着払いなど)
-    val source: String, // "auction" or "fleamarket"
+    val bidCount: Int,
+    val shippingInfo: String?,
+    val source: String,
     val description: String?,
     val isNew: Boolean,
     val isExcluded: Boolean,
-    val endTime: String?, // 終了時間（オークション用）
+    val isFavorite: Boolean = false, // お気に入りフラグ
+    val endTime: String?,
     val createdAt: Long
 )

@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/PayPayFleaParser.kt
-//ver 1.01-184
+//ver 1.02-06
 package com.yahoosreach01.papa
 
 import com.yahoosreach01.papa.utils.LogManager
@@ -10,9 +10,6 @@ object PayPayFleaParser {
     fun parse(condition: SearchConditionEntity, encodedQuery: String, excludedIds: Set<String>, excludedUrls: Set<String>, currentTime: Long): List<ItemEntity> {
         val fetchedItems = mutableMapOf<String, ItemEntity>()
 
-        LogManager.isHtmlDebugEnabled = false
-
-        // ★ キーワードのスペースを %20 に置換し、括弧などの記号をそのまま維持するフォーマット
         val rawQuery = (condition.searchKeys.trim() + if (condition.excludeKeys.isNotBlank()) {
             " " + condition.excludeKeys.trim().split("\\s+".toRegex()).joinToString(" ") { if (it.startsWith("-")) it else "-$it" }
         } else {
@@ -21,7 +18,6 @@ object PayPayFleaParser {
         
         val formattedQuery = rawQuery.replace(" ", "%20")
 
-        // カテゴリパラメータ (例: categoryIds=2502%2C88%2C98)
         val categoryParam = if (condition.categories.isNotBlank()) {
             val fleaPath = condition.categories.split(",")
                 .map { it.trim() }
@@ -40,7 +36,6 @@ object PayPayFleaParser {
         val priceMinParam = if (condition.minPrice > 0) "&minPrice=${condition.minPrice}" else ""
         val priceMaxParam = if (condition.maxPrice > 0) "&maxPrice=${condition.maxPrice}" else ""
 
-        // ★ ブラウザの正しいURL構造（withSpeller=0 を含めた完全なパラメータ仕様）に準拠した3つのソートモード
         val sortModes = listOf(
             "&withSpeller=0&sort=price&order=asc" to "価格が安い順",
             "&withSpeller=0&sort=openTime&order=desc" to "新着順",
@@ -67,11 +62,6 @@ object PayPayFleaParser {
                 }
 
                 val fleaItems = doc.select("a[href*='/item/'], div[data-reactid], li, div[class*='ItemCard']")
-
-                LogManager.d(
-                    "PayPayFleaParser",
-                    "フリマ取得件数 ($modeName): ${fleaItems.size}"
-                )
 
                 for (element in fleaItems) {
                     try {
@@ -202,6 +192,7 @@ object PayPayFleaParser {
                             description = null,
                             isNew = true,
                             isExcluded = false,
+                            isFavorite = false,
                             endTime = null,
                             createdAt = currentTime
                         )

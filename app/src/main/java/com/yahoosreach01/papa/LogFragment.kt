@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/LogFragment.kt
-//ver 1.01-130
+//ver 1.02-25
 package com.yahoosreach01.papa
 
 import android.os.Bundle
@@ -33,6 +33,11 @@ class LogFragment : Fragment() {
 
             binding.btnCopyHtml.setOnClickListener {
                 context?.let { ctx -> LogManager.copyToClipboard(ctx, isHtml = true) }
+            }
+
+            // ★ ログファイル出力ボタンのリスナー設定
+            binding.btnExportFile.setOnClickListener {
+                context?.let { ctx -> LogManager.exportLogsToFile(ctx) }
             }
 
             binding.btnClear.setOnClickListener {

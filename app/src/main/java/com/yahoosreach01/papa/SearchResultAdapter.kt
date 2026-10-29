@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchResultAdapter.kt
-//ver 1.01-138
+//ver 1.02-03
 package com.yahoosreach01.papa
 
 import android.graphics.Color
@@ -29,12 +29,16 @@ class SearchResultAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
-        holder.binding.tvTitle.text = item.title
+        
+        // ★ お気に入りならタイトルに★を付与
+        holder.binding.tvTitle.text = if (item.isFavorite) "★ ${item.title}" else item.title
         
         holder.binding.tvBadgeNew.visibility = if (item.isNew) View.VISIBLE else View.GONE
 
-        // ★ 背景色の動的変更ロジック
-        if (item.source == "fleamarket") {
+        // ★ 背景色の動的変更ロジック (お気に入りは薄い水色でハイライト)
+        if (item.isFavorite) {
+            holder.binding.root.setBackgroundColor(Color.parseColor("#E3F2FD"))
+        } else if (item.source == "fleamarket") {
             // フリマは薄い黄色
             holder.binding.root.setBackgroundColor(Color.parseColor("#FFFDE7"))
         } else {
@@ -73,13 +77,11 @@ class SearchResultAdapter(
             holder.binding.tvPromptPrice.text = "送料: ${item.shippingInfo}"
             holder.binding.tvPromptPrice.visibility = View.VISIBLE
 
-            // フリマの場合は終了時間がないため非表示または "-"
             holder.binding.tvEndTime.text = "終了: -"
         } else {
             holder.binding.tvSource.text = "オークション"
             holder.binding.tvSource.setBackgroundColor(Color.parseColor("#FF5722"))
 
-            // オークション：現在値 ＋ 入札数 ＋ 即決値(あれば) ＋ 送料
             val bidStr = if (item.bidCount > 0) " (入札:${item.bidCount}件)" else " (入札:0件)"
             holder.binding.tvCurrentPrice.text = "現在: ${item.currentPrice}円$bidStr"
 
@@ -87,7 +89,6 @@ class SearchResultAdapter(
             holder.binding.tvPromptPrice.text = "${promptPart}送料: ${item.shippingInfo}"
             holder.binding.tvPromptPrice.visibility = View.VISIBLE
 
-            // ★ オークションの終了時間表示（未取得や空なら "-" を設定して確実に表示）
             val displayEndTime = if (!item.endTime.isNullOrBlank()) item.endTime else "-"
             holder.binding.tvEndTime.text = "終了: $displayEndTime"
         }
