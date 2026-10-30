@@ -1,5 +1,5 @@
 //app/src/main/java/com/yahoosreach01/papa/SearchWorker.kt
-//ver 1.02-16
+//ver 1.02-42
 package com.yahoosreach01.papa
 
 import android.content.Context
@@ -59,7 +59,7 @@ object SearchWorker {
             // 1. Yahoo Auction Search
             if (serviceType != "fleamarket") {
                 try {
-                    val yahooItems = YahooAuctionParser.parse(condition, encodedQuery, excludedIds, excludedUrls, currentTime)
+                    val yahooItems = YahooAuctionParser.parse(context, condition, encodedQuery, excludedIds, excludedUrls, currentTime)
                     if (yahooItems.isNotEmpty()) {
                         fetchedItems.addAll(yahooItems)
                         LogManager.d("SearchWorker", "ヤフオク取得反映成功: ${yahooItems.size}件")
@@ -74,7 +74,7 @@ object SearchWorker {
             // 2. PayPay Flea Search
             if (serviceType != "auction") {
                 try {
-                    val fleaItems = PayPayFleaParser.parse(condition, encodedQuery, excludedIds, excludedUrls, currentTime)
+                    val fleaItems = PayPayFleaParser.parse(context, condition, encodedQuery, excludedIds, excludedUrls, currentTime)
                     if (fleaItems.isNotEmpty()) {
                         fetchedItems.addAll(fleaItems)
                         LogManager.d("SearchWorker", "フリマ取得反映成功: ${fleaItems.size}件")
